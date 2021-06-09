@@ -39,7 +39,7 @@ func (tc *TrapCheck) fetchBroker(cid, checkType string) error {
 		return fmt.Errorf("retrieving broker (%s): %w", cid, err)
 	}
 	if valid, err := tc.isValidBroker(broker, checkType); !valid {
-		return fmt.Errorf("%s (%s) is an invalid broker for check type %s: %s", tc.broker.Name, tc.checkConfig.Brokers[0], checkType, err)
+		return fmt.Errorf("%s (%s) is an invalid broker for check type %s: %w", tc.broker.Name, tc.checkConfig.Brokers[0], checkType, err)
 	}
 	tc.broker = broker
 	return nil
@@ -50,10 +50,7 @@ func (tc *TrapCheck) getBroker(checkType string) error {
 	// caller defiened specific broker, try to use it
 	//
 	if tc.checkConfig != nil && len(tc.checkConfig.Brokers) > 0 {
-		if err := tc.fetchBroker(tc.checkConfig.Brokers[0], checkType); err != nil {
-			return err
-		}
-		return nil
+		return tc.fetchBroker(tc.checkConfig.Brokers[0], checkType)
 	}
 
 	//
@@ -67,13 +64,13 @@ func (tc *TrapCheck) getBroker(checkType string) error {
 		}
 		bl, err := tc.client.SearchBrokers(nil, &filter)
 		if err != nil {
-			return err
+			return fmt.Errorf("search brokers: %w", err)
 		}
 		brokerList = bl
 	} else {
 		bl, err := tc.client.FetchBrokers()
 		if err != nil {
-			return err
+			return fmt.Errorf("fetch brokers: %w", err)
 		}
 		brokerList = bl
 	}
@@ -118,7 +115,7 @@ func (tc *TrapCheck) getBroker(checkType string) error {
 	maxBrokers := big.NewInt(int64(len(validBrokerKeys)))
 	bidx, err := rand.Int(rand.Reader, maxBrokers)
 	if err != nil {
-		return err
+		return fmt.Errorf("rand: %w", err)
 	}
 	selectedBroker := validBrokers[validBrokerKeys[bidx.Uint64()].String()]
 
@@ -206,7 +203,7 @@ func (tc *TrapCheck) isValidBroker(broker *apiclient.Broker, checkType string) (
 	return false, fmt.Errorf("no valid broker instances found")
 }
 
-// Verify broker supports the check type to be used
+// Verify broker supports the check type to be used.
 func (tc *TrapCheck) brokerSupportsCheckType(checkType string, details *apiclient.BrokerDetail) (bool, error) {
 	if details == nil {
 		return false, fmt.Errorf("invalid broker details (nil)")
@@ -240,7 +237,7 @@ func (tc *TrapCheck) getBrokerCNList() (string, string, error) {
 		return "", "", fmt.Errorf("invalid state, check bundle is nil")
 	}
 	submissionURL := tc.checkBundle.Config[config.SubmissionURL]
-	u, err := url.Parse(string(submissionURL))
+	u, err := url.Parse(submissionURL)
 	if err != nil {
 		return "", "", fmt.Errorf("parse submission URL: %w", err)
 	}

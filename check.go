@@ -28,11 +28,7 @@ func (tc *TrapCheck) initializeCheck() error {
 		return tc.fetchCheckBundle()
 	}
 
-	if err := tc.initCheckBundle(cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return tc.initCheckBundle(cfg)
 }
 
 func (tc *TrapCheck) refreshCheck() (bool, error) {
@@ -144,7 +140,7 @@ func (tc *TrapCheck) createCheckBundle(cfg *apiclient.CheckBundle) error {
 	}
 	bundle, err := tc.client.CreateCheckBundle(cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("create check bundle: %w", err)
 	}
 	tc.checkBundle = bundle
 	return nil
@@ -253,15 +249,15 @@ func (tc *TrapCheck) applyCheckBundleDefaults(cfg *apiclient.CheckBundle) error 
 	return nil
 }
 
-// Create a dynamic secret to use with a new check
+// Create a dynamic secret to use with a new check.
 func makeSecret() (string, error) {
 	hash := sha256.New()
 	x := make([]byte, 2048)
 	if _, err := rand.Read(x); err != nil {
-		return "", err
+		return "", fmt.Errorf("rand read: %w", err)
 	}
 	if _, err := hash.Write(x); err != nil {
-		return "", err
+		return "", fmt.Errorf("hash write: %w", err)
 	}
 	return hex.EncodeToString(hash.Sum(nil))[0:16], nil
 }

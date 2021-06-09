@@ -8,9 +8,9 @@ package release
 // NOTE: normally handled by build tags, but this is a package, so make constant
 
 const (
-	// NAME is the name of this application
+	// NAME is the name of this application.
 	NAME = "circonus-trapcheck"
-	// VERSION of the release
+	// VERSION of the release.
 	VERSION = "v0.0.10"
 )
 
