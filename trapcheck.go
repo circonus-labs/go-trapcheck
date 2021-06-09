@@ -59,7 +59,7 @@ type TrapCheck struct {
 
 // New creates a new TrapCheck instance
 // it will create a check if it is not able to find
-// one based on the passed Check Config and Check Search Tag
+// one based on the passed Check Config and Check Search Tag.
 func New(cfg *Config) (*TrapCheck, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("invalid configuration  (nil)")
@@ -139,7 +139,7 @@ func New(cfg *Config) (*TrapCheck, error) {
 
 // SendMetrics submits the metrics to the broker
 // metrics must be valid JSON encoded data for the broker httptrap check
-// returns trap results in a structure or an error
+// returns trap results in a structure or an error.
 func (tc *TrapCheck) SendMetrics(ctx context.Context, metrics *strings.Builder) (*TrapResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -168,7 +168,7 @@ func (tc *TrapCheck) SendMetrics(ctx context.Context, metrics *strings.Builder) 
 
 // GetCheckBundle returns the trap check bundle currently in use - can be used
 // for caching checks on disk and re-using the ckeck quickly by passing
-// the CID in via the check bundle config
+// the CID in via the check bundle config.
 func (tc *TrapCheck) GetCheckBundle() (*apiclient.CheckBundle, error) {
 	if tc.checkBundle == nil {
 		return nil, fmt.Errorf("trap check not initialized/created")
@@ -178,7 +178,7 @@ func (tc *TrapCheck) GetCheckBundle() (*apiclient.CheckBundle, error) {
 
 // GetBrokerTLSConfig returns the current tls config - can be used
 // for pre-seeding multiple check creation without repeatedly
-// calling the API for the same CA cert - returns tls config, error
+// calling the API for the same CA cert - returns tls config, error.
 func (tc *TrapCheck) GetBrokerTLSConfig() (*tls.Config, error) {
 	if public, err := tc.isPublicBroker(); err != nil {
 		return nil, err
@@ -217,7 +217,7 @@ func (tc *TrapCheck) TraceMetrics(trace string) (string, error) {
 	return curr, nil
 }
 
-// testTraceMetricsDir verifies the trace metrics directory exists and is writeable
+// testTraceMetricsDir verifies the trace metrics directory exists and is writeable.
 func testTraceMetricsDir(dir string) error {
 	if dir == "" {
 		return fmt.Errorf("invalid trace setting (empty)")

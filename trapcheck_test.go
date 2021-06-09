@@ -114,8 +114,8 @@ func TestTrapCheck_GetBrokerTLSConfig(t *testing.T) {
 		},
 		{
 			name:      "valid",
-			brokerTLS: &tls.Config{ServerName: "foobar"},
-			want:      &tls.Config{ServerName: "foobar"},
+			brokerTLS: &tls.Config{ServerName: "foobar", MinVersion: tls.VersionTLS12},
+			want:      &tls.Config{ServerName: "foobar", MinVersion: tls.VersionTLS12},
 			wantErr:   false,
 		},
 	}

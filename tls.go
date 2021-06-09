@@ -21,7 +21,7 @@ func (tc *TrapCheck) clearTLSConfig() {
 }
 
 // setBrokerTLSConfig sets the broker tls configuration if was
-// not supplied by the caller in the configuration
+// not supplied by the caller in the configuration.
 func (tc *TrapCheck) setBrokerTLSConfig() error {
 
 	// setBrokerTLSConfig has already initialized it
@@ -98,7 +98,7 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 				opts.Intermediates.AddCert(cert)
 			}
 			_, err := cs.PeerCertificates[0].Verify(opts)
-			return err
+			return fmt.Errorf("peer cert verify: %w", err)
 		},
 	}
 
@@ -107,12 +107,12 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 	return nil
 }
 
-// caCert contains broker CA certificate returned from Circonus API
+// caCert contains broker CA certificate returned from Circonus API.
 type caCert struct {
 	Contents string `json:"contents"`
 }
 
-// fetchCert fetches CA certificate using Circonus API
+// fetchCert fetches CA certificate using Circonus API.
 func (tc *TrapCheck) fetchCert() ([]byte, error) {
 
 	tc.Log.Debugf("fetching broker cert from api")

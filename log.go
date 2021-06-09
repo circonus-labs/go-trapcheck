@@ -7,7 +7,7 @@ package trapcheck
 
 import "log"
 
-// Logger is a generic logging interface
+// Logger is a generic logging interface.
 type Logger interface {
 	Printf(fmt string, v ...interface{})
 	Debugf(fmt string, v ...interface{})
@@ -16,7 +16,7 @@ type Logger interface {
 	Errorf(fmt string, v ...interface{})
 }
 
-// LogWrapper is a wrapper around Go's log.Logger
+// LogWrapper is a wrapper around Go's log.Logger.
 type LogWrapper struct {
 	Log   *log.Logger
 	Debug bool

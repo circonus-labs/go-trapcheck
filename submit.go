@@ -190,7 +190,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 				if cie.Reason == x509.NameMismatch {
 					tc.Log.Warnf("certificate name mismatch (refreshing TLS config) common cause, new broker added to cluster or check moved to new broker: %s", cie.Detail)
 					tc.clearTLSConfig()
-					return false, err
+					return false, fmt.Errorf("x509 cert name mismatch: %w", err)
 				}
 			} else {
 				tc.Log.Warnf("request error (%s): %s", resp.Request.URL, err)
@@ -203,7 +203,6 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 
 	reqStart = time.Now()
 	resp, err := retryClient.Do(req)
-	// TODO: catch invalid cert error and return refresh check=true
 	if resp != nil {
 		defer resp.Body.Close()
 	}

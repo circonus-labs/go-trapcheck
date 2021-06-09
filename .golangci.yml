@@ -68,7 +68,7 @@ linters:
     - goconst
     # - stylecheck
     - forcetypeassert
-    - goimports
+    # - goimports
   disable:
     - scopelint # deprecated
     - golint    # deprecated
