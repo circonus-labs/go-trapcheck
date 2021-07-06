@@ -1,3 +1,7 @@
+# v0.0.3
+
+* fix: reduce log message size when broker responds with 406
+
 # v0.0.2
 
 * add: dependabot config
