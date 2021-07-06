@@ -98,7 +98,10 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 				opts.Intermediates.AddCert(cert)
 			}
 			_, err := cs.PeerCertificates[0].Verify(opts)
-			return fmt.Errorf("peer cert verify: %w", err)
+			if err != nil {
+				return fmt.Errorf("peer cert verify: %w", err)
+			}
+			return nil
 		},
 	}
 
