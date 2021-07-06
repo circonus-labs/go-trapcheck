@@ -177,7 +177,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 		if r.StatusCode != http.StatusOK {
 			l.Printf("non-200 response %s: %s", r.Request.URL.String(), r.Status)
 			if r.StatusCode == http.StatusNotAcceptable {
-				l.Printf("broker couldn't parse payload: '%s'", string(metrics))
+				l.Printf("broker couldn't parse payload - try tracing metrics for this specific check")
 			}
 		}
 	}
