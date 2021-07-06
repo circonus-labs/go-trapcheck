@@ -1,5 +1,7 @@
 # Package `go-trapcheck`
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/circonus-labs/go-trapcheck.svg)](https://pkg.go.dev/github.com/circonus-labs/go-trapcheck)
+
 HTTPTrap check management to separate checkmgr from cgm. Goes with `go-trapmetrics` for handling collection and submission of metrics from applications.
 
 ## Configuration options
