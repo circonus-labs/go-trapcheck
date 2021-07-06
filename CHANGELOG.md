@@ -1,3 +1,7 @@
+# v0.0.4
+
+* fix: peer cert verify bad return on nil err
+
 # v0.0.3
 
 * fix: reduce log message size when broker responds with 406
