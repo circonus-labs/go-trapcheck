@@ -1,3 +1,7 @@
+# v0.0.5
+
+* add: NewFromCheckBundle to handle init from explicit check bundle (e.g. cached)
+
 # v0.0.4
 
 * fix: peer cert verify bad return on nil err
