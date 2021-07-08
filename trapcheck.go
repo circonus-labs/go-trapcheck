@@ -128,7 +128,86 @@ func New(cfg *Config) (*TrapCheck, error) {
 		} else {
 			return nil, fmt.Errorf("no submission url found in check bundle config")
 		}
+	} else {
+		// assume a valid bundle was provided in the check config
+		tc.checkBundle = tc.checkConfig
 	}
+
+	if err := tc.setBrokerTLSConfig(); err != nil {
+		return nil, err
+	}
+
+	return tc, nil
+}
+
+// NewFromCheckBundle creates a new TrapCheck instance
+// using the supplied check bundle.
+func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("invalid configuration  (nil)")
+	}
+
+	if cfg.Client == nil {
+		return nil, fmt.Errorf("invalid configuration (nil api client)")
+	}
+
+	if bundle == nil {
+		return nil, fmt.Errorf("invalid check bundle (nil)")
+	}
+
+	tc := &TrapCheck{
+		client:            cfg.Client,
+		checkConfig:       cfg.CheckConfig,
+		checkSearchTags:   cfg.CheckSearchTags,
+		custSubmissionURL: cfg.SubmissionURL,
+		custTLSConfig:     cfg.SubmitTLSConfig,
+		brokerSelectTags:  cfg.BrokerSelectTags,
+		checkBundle:       bundle,
+		broker:            nil,
+		tlsConfig:         nil,
+		submissionURL:     "",
+	}
+
+	if cfg.Logger != nil {
+		tc.Log = cfg.Logger
+	} else {
+		tc.Log = &LogWrapper{
+			Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+			Debug: false,
+		}
+	}
+
+	dur := cfg.BrokerMaxResponseTime
+	if dur == "" {
+		dur = defaultBrokerMaxResponseTime
+	}
+	maxDur, err := time.ParseDuration(dur)
+	if err != nil {
+		return nil, fmt.Errorf("parsing broker max response time (%s): %w", dur, err)
+	}
+	tc.brokerMaxResponseTime = maxDur
+
+	if cfg.TraceMetrics != "" {
+		err := testTraceMetricsDir(cfg.TraceMetrics)
+		if err != nil {
+			tc.Log.Warnf("trace metrics directory (%s): %s -- disabling", cfg.TraceMetrics, err)
+		} else {
+			tc.traceMetrics = cfg.TraceMetrics
+		}
+	}
+
+	// verify that if the check type is set, it is a variant of httptrap
+	// this module ONLY deals with httptraps.
+	if tc.checkBundle.Type != "" && !strings.HasPrefix(tc.checkBundle.Type, "httptrap") {
+		return nil, fmt.Errorf("check type must be httptrap variant (%s)", tc.checkBundle.Type)
+	}
+
+	surl, ok := tc.checkBundle.Config[config.SubmissionURL]
+	if !ok {
+		return nil, fmt.Errorf("invalid check bundle, no submission url found")
+	}
+
+	tc.submissionURL = surl
 
 	if err := tc.setBrokerTLSConfig(); err != nil {
 		return nil, err
