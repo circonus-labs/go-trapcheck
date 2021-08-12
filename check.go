@@ -187,7 +187,8 @@ func (tc *TrapCheck) applyCheckBundleDefaults(cfg *apiclient.CheckBundle) error 
 
 	// metric filters
 	if len(cfg.MetricFilters) == 0 {
-		cfg.MetricFilters = [][]string{{"deny", "^$", ""}, {"allow", "^.+$", ""}}
+		// cfg.MetricFilters = [][]string{{"deny", "^$", ""}, {"allow", "^.+$", ""}}
+		cfg.MetricFilters = [][]string{{"allow", ".", ""}}
 	}
 
 	// search tag, and check tags
