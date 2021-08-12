@@ -1,3 +1,7 @@
+# v0.0.6
+
+* upd: only use an allow rule in metric filter when creating a new check to reduce load on broker processing
+
 # v0.0.5
 
 * add: NewFromCheckBundle to handle init from explicit check bundle (e.g. cached)
