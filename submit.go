@@ -13,18 +13,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/circonus-labs/go-trapcheck/internal/release"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
+
+	"github.com/circonus-labs/go-trapcheck/internal/release"
 )
 
 type TrapResult struct {
@@ -43,11 +44,11 @@ const (
 	traceTSFormat        = "20060102_150405.000000000"
 )
 
-func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) (*TrapResult, bool, error) {
+func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapResult, bool, error) {
 
-	metrics := []byte(metricBuffer.String())
+	metricLen := metrics.Len()
 
-	if len(metrics) == 0 {
+	if metricLen == 0 {
 		return nil, false, fmt.Errorf("zero length data, no metrics to submit")
 	}
 
@@ -96,28 +97,41 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 	submitUUID := "n/a"
 
 	payloadIsCompressed := false
-	var subData *bytes.Buffer
-	if len(metrics) > compressionThreshold {
-		subData = bytes.NewBuffer([]byte{})
+	reader := bytes.NewReader(metrics.Bytes())
+	subData := new(bytes.Buffer)
+	if metricLen > compressionThreshold {
 		zw := gzip.NewWriter(subData)
-		n, e1 := zw.Write(metrics)
+		n, e1 := io.Copy(zw, reader)
+		// n, e1 := zw.Write(metrics.Bytes())
 		if e1 != nil {
 			return nil, false, fmt.Errorf("compressing metrics: %w", e1)
 		}
-		if n != len(metrics) {
-			return nil, false, fmt.Errorf("write length mismatch data length %d != written length %d", len(metrics), n)
+		if int(n) != metricLen {
+			return nil, false, fmt.Errorf("gzwrite length mismatch data length %d != written length %d", metricLen, n)
 		}
 		if e2 := zw.Close(); e2 != nil {
 			return nil, false, fmt.Errorf("closing gzip writer: %w", e2)
 		}
 		payloadIsCompressed = true
 	} else {
-		subData = bytes.NewBuffer(metrics)
+		n, e1 := io.Copy(subData, reader)
+		// n, e1 := subData.Write(metrics.Bytes())
+		if e1 != nil {
+			return nil, false, fmt.Errorf("writing metrics to buffer: %w", e1)
+		}
+		if int(n) != metricLen {
+			return nil, false, fmt.Errorf("write length mismatch data length %d != written length %d", metricLen, n)
+		}
 	}
 
 	if traceDir := tc.traceMetrics; traceDir != "" {
 		if traceDir == "-" {
-			tc.Log.Infof("metric payload: %s", string(metrics))
+			_, err := reader.Seek(0, io.SeekStart)
+			if err != nil {
+				tc.Log.Warnf("seeking start of metrics: %s", err)
+			} else {
+				tc.Log.Infof("metric payload: %s", metrics.String())
+			}
 		} else {
 			sid, err := uuid.NewRandom()
 			if err != nil {
@@ -146,7 +160,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 	dataLen := subData.Len()
 
 	var reqStart time.Time
-	req, err := retryablehttp.NewRequest("PUT", tc.submissionURL, subData)
+	req, err := retryablehttp.NewRequest("PUT", tc.submissionURL, subData.Bytes())
 	if err != nil {
 		return nil, false, fmt.Errorf("creating request: %w", err)
 	}
@@ -160,6 +174,8 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 		req.Header.Set("Content-Encoding", "gzip")
 	}
 
+	retries := 0
+
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient = client
 	retryClient.Logger = tc.Log // submitLogshim{logh: tc.Log.Logger()}
@@ -170,6 +186,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 		if attempt > 0 {
 			reqStart = time.Now()
 			l.Printf("retrying... %s %d", r.URL.String(), attempt)
+			retries++
 		}
 	}
 
@@ -179,6 +196,8 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 			if r.StatusCode == http.StatusNotAcceptable {
 				l.Printf("broker couldn't parse payload - try tracing metrics for this specific check")
 			}
+		} else if r.StatusCode == http.StatusOK && retries > 0 {
+			l.Printf("succeeded after %d attempt(s)", retries+1) // add one for first failed attempt
 		}
 	}
 
@@ -216,9 +235,10 @@ func (tc *TrapCheck) submit(ctx context.Context, metricBuffer *strings.Builder) 
 	}
 
 	if resp.StatusCode == http.StatusNotFound && tc.custSubmissionURL == "" {
-		return nil, true, fmt.Errorf("submitting metrics (%s %s), refreshing check", req.URL.String(), resp.Status)
+		tc.Log.Warnf("%s - %s: refreshing check", resp.Status, req.URL.String())
+		return nil, true, fmt.Errorf("%s - %s", resp.Status, req.URL.String())
 	} else if resp.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("submitting metrics (%s %s)", req.URL.String(), resp.Status)
+		return nil, false, fmt.Errorf("%s - %s", resp.Status, req.URL.String())
 	}
 	var result TrapResult
 	if err := json.Unmarshal(body, &result); err != nil {
