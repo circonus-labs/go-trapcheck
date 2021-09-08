@@ -99,6 +99,7 @@ func (tc *TrapCheck) findCheckBundle(cfg *apiclient.CheckBundle) (bool, error) {
 	case numBundles == 1:
 		bundle := (*bundles)[0]
 		tc.checkBundle = &bundle
+		tc.newCheckBundle = false // found existing one
 		return true, nil
 	case numBundles > 1:
 		found := 0
@@ -161,6 +162,7 @@ func (tc *TrapCheck) fetchCheckBundle() error {
 	}
 
 	tc.checkBundle = bundle
+	tc.newCheckBundle = false // pulled existing by CID
 
 	return nil
 }
@@ -188,6 +190,9 @@ func (tc *TrapCheck) applyCheckBundleDefaults(cfg *apiclient.CheckBundle) error 
 	// metric filters
 	if len(cfg.MetricFilters) == 0 {
 		// cfg.MetricFilters = [][]string{{"deny", "^$", ""}, {"allow", "^.+$", ""}}
+		// NOTE: only, allow rule, so a deny is not evaluated by broker
+		//       for every incoming metric. one rule _must_ be provided
+		//       in order to enable metric_filters.
 		cfg.MetricFilters = [][]string{{"allow", ".", ""}}
 	}
 
