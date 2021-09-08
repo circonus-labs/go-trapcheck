@@ -11,7 +11,7 @@ const (
 	// NAME is the name of this application.
 	NAME = "circonus-trapcheck"
 	// VERSION of the release.
-	VERSION = "v0.0.6"
+	VERSION = "v0.0.7"
 )
 
 // // Info contains release information
