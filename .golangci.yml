@@ -5,6 +5,7 @@ run:
   skip-dirs-use-default: true
   skip-files:
     - ".*_mock_test.go$"
+    - ".*_moq_test.go$"
   allow-parallel-runners: true
 
 # all available settings of specific linters
