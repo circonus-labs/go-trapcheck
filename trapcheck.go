@@ -6,6 +6,7 @@
 package trapcheck
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -39,6 +40,8 @@ type Config struct {
 	BrokerSelectTags apiclient.TagType
 	// CheckSearchTags defines a tag to use when searching for a check
 	CheckSearchTags apiclient.TagType
+	// PublicCA indicates the broker is using a public cert (do not use custom TLS config)
+	PublicCA bool
 }
 
 type TrapCheck struct {
@@ -55,6 +58,8 @@ type TrapCheck struct {
 	checkSearchTags       apiclient.TagType
 	brokerSelectTags      apiclient.TagType
 	brokerMaxResponseTime time.Duration
+	newCheckBundle        bool
+	usingPublicCA         bool
 }
 
 // New creates a new TrapCheck instance
@@ -71,15 +76,27 @@ func New(cfg *Config) (*TrapCheck, error) {
 
 	tc := &TrapCheck{
 		client:            cfg.Client,
-		checkConfig:       cfg.CheckConfig,
 		checkSearchTags:   cfg.CheckSearchTags,
 		custSubmissionURL: cfg.SubmissionURL,
-		custTLSConfig:     cfg.SubmitTLSConfig,
 		brokerSelectTags:  cfg.BrokerSelectTags,
 		checkBundle:       nil,
 		broker:            nil,
 		tlsConfig:         nil,
 		submissionURL:     "",
+		newCheckBundle:    true,
+		usingPublicCA:     false,
+	}
+
+	if cfg.SubmitTLSConfig != nil {
+		tc.custTLSConfig = cfg.SubmitTLSConfig.Clone()
+	}
+	if cfg.CheckConfig != nil {
+		userCheckConfig := *cfg.CheckConfig
+		tc.checkConfig = &userCheckConfig
+	}
+	if cfg.PublicCA {
+		tc.custTLSConfig = nil
+		tc.usingPublicCA = true
 	}
 
 	if cfg.Logger != nil {
@@ -154,18 +171,26 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 	if bundle == nil {
 		return nil, fmt.Errorf("invalid check bundle (nil)")
 	}
+	userBundle := *bundle
 
 	tc := &TrapCheck{
 		client:            cfg.Client,
-		checkConfig:       cfg.CheckConfig,
 		checkSearchTags:   cfg.CheckSearchTags,
 		custSubmissionURL: cfg.SubmissionURL,
-		custTLSConfig:     cfg.SubmitTLSConfig,
 		brokerSelectTags:  cfg.BrokerSelectTags,
-		checkBundle:       bundle,
+		checkBundle:       &userBundle,
 		broker:            nil,
 		tlsConfig:         nil,
 		submissionURL:     "",
+		newCheckBundle:    false,
+	}
+
+	if cfg.SubmitTLSConfig != nil {
+		tc.custTLSConfig = cfg.SubmitTLSConfig.Clone()
+	}
+	if cfg.CheckConfig != nil {
+		userCheckConfig := *cfg.CheckConfig
+		tc.checkConfig = &userCheckConfig
 	}
 
 	if cfg.Logger != nil {
@@ -219,9 +244,12 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 // SendMetrics submits the metrics to the broker
 // metrics must be valid JSON encoded data for the broker httptrap check
 // returns trap results in a structure or an error.
-func (tc *TrapCheck) SendMetrics(ctx context.Context, metrics *strings.Builder) (*TrapResult, error) {
+func (tc *TrapCheck) SendMetrics(ctx context.Context, metrics bytes.Buffer) (*TrapResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if metrics.Len() == 0 {
+		return nil, fmt.Errorf("no metrics to submit")
 	}
 
 	result, refresh, submitErr := tc.submit(ctx, metrics)
@@ -238,21 +266,32 @@ func (tc *TrapCheck) SendMetrics(ctx context.Context, metrics *strings.Builder) 
 			// submission url) just return the original submit error
 			return nil, fmt.Errorf("unable to refresh: %w", submitErr)
 		}
+		delay := 2 * time.Second
+		tc.Log.Warnf("check refreshed, retrying submission in %s", delay.String())
+		time.Sleep(delay)
 		// try submission again, if it fails again just pass the error back to the caller
 		result, _, submitErr = tc.submit(ctx, metrics)
+		if submitErr != nil {
+			tc.Log.Warnf("unable to submit after refresh: %s", submitErr)
+		}
 	}
 
 	return result, submitErr
 }
 
+// IsNewCheckBundle returns true if the check bundle was created.
+func (tc *TrapCheck) IsNewCheckBundle() bool {
+	return tc.newCheckBundle
+}
+
 // GetCheckBundle returns the trap check bundle currently in use - can be used
 // for caching checks on disk and re-using the ckeck quickly by passing
 // the CID in via the check bundle config.
-func (tc *TrapCheck) GetCheckBundle() (*apiclient.CheckBundle, error) {
+func (tc *TrapCheck) GetCheckBundle() (apiclient.CheckBundle, error) {
 	if tc.checkBundle == nil {
-		return nil, fmt.Errorf("trap check not initialized/created")
+		return apiclient.CheckBundle{}, fmt.Errorf("trap check not initialized/created")
 	}
-	return tc.checkBundle, nil
+	return *tc.checkBundle, nil
 }
 
 // GetBrokerTLSConfig returns the current tls config - can be used
@@ -276,6 +315,9 @@ func (tc *TrapCheck) isPublicBroker() (bool, error) {
 	}
 	if tc.submissionURL == "" {
 		return false, fmt.Errorf("invalid state, no submission url")
+	}
+	if tc.usingPublicCA {
+		return false, nil
 	}
 	return strings.Contains(tc.submissionURL, "api.circonus.com"), nil
 }
