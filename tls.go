@@ -29,12 +29,6 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 		return nil
 	}
 
-	// caller supplied tls config
-	if tc.custTLSConfig != nil {
-		tc.tlsConfig = tc.custTLSConfig
-		return nil
-	}
-
 	u, err := url.Parse(tc.submissionURL)
 	if err != nil {
 		return fmt.Errorf("parse submission URL: %w", err)
@@ -44,7 +38,18 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 		return nil // not using tls
 	}
 
-	if u.Hostname() == "api.circonus.com" {
+	// caller supplied tls config
+	if tc.custTLSConfig != nil {
+		tc.tlsConfig = tc.custTLSConfig.Clone()
+		return nil
+	}
+
+	var public bool
+	public, err = tc.isPublicBroker()
+	if err != nil {
+		return err
+	}
+	if public {
 		return nil // public cert
 	}
 
