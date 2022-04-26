@@ -60,6 +60,7 @@ type TrapCheck struct {
 	brokerMaxResponseTime time.Duration
 	newCheckBundle        bool
 	usingPublicCA         bool
+	resetTLSConfig        bool
 }
 
 // New creates a new TrapCheck instance
@@ -244,7 +245,7 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 // SendMetrics submits the metrics to the broker
 // metrics must be valid JSON encoded data for the broker httptrap check
 // returns trap results in a structure or an error.
-func (tc *TrapCheck) SendMetrics(ctx context.Context, metrics bytes.Buffer) (*TrapResult, error) {
+func (tc *TrapCheck) SendMetrics(ctx context.Context, metrics bytes.Buffer) (*TrapResult, error) { //nolint:contextcheck
 	if ctx == nil {
 		ctx = context.Background()
 	}
