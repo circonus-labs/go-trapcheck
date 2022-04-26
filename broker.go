@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -141,6 +142,9 @@ func (tc *TrapCheck) isValidBroker(broker *apiclient.Broker, checkType string) (
 		return false, fmt.Errorf("broker '%s' invalid, no instance details", broker.Name)
 	}
 
+	httpProxy := os.Getenv("HTTP_PROXY")
+	httpsProxy := os.Getenv("HTTPS_PROXY")
+
 	for _, detail := range broker.Details {
 		detail := detail
 
@@ -182,6 +186,14 @@ func (tc *TrapCheck) isValidBroker(broker *apiclient.Broker, checkType string) (
 		}
 		if brokerHost == "api.circonus.net" && brokerPort != "443" {
 			brokerPort = "443"
+		}
+
+		// do not direct connect to test broker, if a proxy env var is set and check is httptrap
+		if strings.Contains(strings.ToLower(checkType), "httptrap") {
+			if httpProxy != "" || httpsProxy != "" {
+				tc.Log.Debugf("skipping connection test, proxy environment var(s) set -- HTTP:'%s' HTTPS:'%s'", httpProxy, httpsProxy)
+				return true, nil
+			}
 		}
 
 		retries := 5

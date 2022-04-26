@@ -9,9 +9,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -201,20 +199,30 @@ func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapRes
 		}
 	}
 
-	retryClient.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
-		retry, err := retryablehttp.ErrorPropagatedRetryPolicy(ctx, resp, err)
-		if retry && err != nil {
-			var cie *x509.CertificateInvalidError
-			if errors.As(err, &cie) {
-				if cie.Reason == x509.NameMismatch {
-					tc.Log.Warnf("certificate name mismatch (refreshing TLS config) common cause, new broker added to cluster or check moved to new broker: %s", cie.Detail)
-					tc.clearTLSConfig()
-					return false, fmt.Errorf("x509 cert name mismatch: %w", err)
-				}
-			} else {
-				tc.Log.Warnf("request error (%s): %s", resp.Request.URL, err)
-			}
+	retryClient.CheckRetry = func(ctx context.Context, resp *http.Response, origErr error) (bool, error) {
+
+		// if origErr != nil {
+		// 	tc.Log.Debugf("request origErr: %s", origErr.Error())
+		// }
+		// // this gets kind of muddy - retryablehttp will eat specific x509 errors we want to log
+		// // see: https://github.com/hashicorp/go-retryablehttp/blob/master/client.go#L443-L494
+		// // so we need to evaluate the original error not the one returned from ErrorPropagatedRetryPolicy
+		// var cie *x509.CertificateInvalidError
+		// if errors.As(origErr, &cie) {
+		// 	if cie.Reason == x509.NameMismatch {
+		// 		tc.Log.Warnf("certificate name mismatch (refreshing TLS config) common cause, new broker added to cluster or check moved to new broker: %s", cie.Detail)
+		// 		if tc.tlsConfig != nil {
+		// 			tc.clearTLSConfig()
+		// 		}
+		// 		return false, fmt.Errorf("x509 cert name mismatch: %w", origErr)
+		// 	}
+		// }
+
+		retry, rhErr := retryablehttp.ErrorPropagatedRetryPolicy(ctx, resp, origErr)
+		if retry && rhErr != nil {
+			tc.Log.Warnf("request error (%s): %s (orig:%s)", resp.Request.URL, rhErr, origErr)
 		}
+
 		return retry, nil
 	}
 

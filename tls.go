@@ -14,15 +14,22 @@ import (
 	"strings"
 )
 
+// clearTLSConfig sets the resetTLSConfig flag so that on the next setBrokerTLSConfig call
+// the broker will be refreshed and a new tls configuration will be created. The most common
+// reason for this to be done is a change to the configuration of a broker cluster (e.g. add/del).
 func (tc *TrapCheck) clearTLSConfig() {
-	tc.broker = nil        // force refresh
-	tc.tlsConfig = nil     // don't use, refresh and reset
-	tc.custTLSConfig = nil // don't use, refresh and reset
+	tc.resetTLSConfig = true
 }
 
 // setBrokerTLSConfig sets the broker tls configuration if was
 // not supplied by the caller in the configuration.
 func (tc *TrapCheck) setBrokerTLSConfig() error {
+	if tc.resetTLSConfig {
+		tc.broker = nil    // force refresh
+		tc.tlsConfig = nil // don't use, refresh and reset
+		tc.resetTLSConfig = false
+		// tc.custTLSConfig = nil // don't use, refresh and reset
+	}
 
 	// setBrokerTLSConfig has already initialized it
 	if tc.tlsConfig != nil {
@@ -40,6 +47,7 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 
 	// caller supplied tls config
 	if tc.custTLSConfig != nil {
+		tc.Log.Debugf("using custom tls configuration")
 		tc.tlsConfig = tc.custTLSConfig.Clone()
 		return nil
 	}
@@ -87,8 +95,9 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 		InsecureSkipVerify: true, //nolint:gosec
 		VerifyConnection: func(cs tls.ConnectionState) error {
 			commonName := cs.PeerCertificates[0].Subject.CommonName
-			// if commonName != cs.ServerName {
 			if !strings.Contains(cnList, commonName) {
+				tc.Log.Warnf("certificate name mismatch (refreshing TLS config) common cause, new broker added to cluster or check moved to new broker -- cn: %q, acceptable: %q", commonName, cnList)
+				tc.clearTLSConfig()
 				return x509.CertificateInvalidError{
 					Cert:   cs.PeerCertificates[0],
 					Reason: x509.NameMismatch,
