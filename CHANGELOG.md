@@ -1,3 +1,10 @@
+# v0.0.8
+
+* add: reset flag and handle rest in setBrokerTLSConfig
+* upd: skip conn test if check type is httptrap and using proxy env vars HTTP_PROXY and/or HTTPS_PROXY
+* upd: move cert error logging to tls config
+* upd: disable gci
+
 # v0.0.7
 
 * add: tracking if bundle is new (created) or not
