@@ -7,7 +7,7 @@ package trapcheck
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +21,7 @@ import (
 func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -86,7 +86,7 @@ func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
 func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -195,7 +195,7 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 func TestTrapCheck_createCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -244,7 +244,7 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 func TestTrapCheck_findCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -378,7 +378,7 @@ func TestTrapCheck_findCheckBundle(t *testing.T) {
 func TestTrapCheck_initCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -457,7 +457,7 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 func TestTrapCheck_initializeCheck(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
