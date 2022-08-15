@@ -10,7 +10,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -104,7 +104,7 @@ func New(cfg *Config) (*TrapCheck, error) {
 		tc.Log = cfg.Logger
 	} else {
 		tc.Log = &LogWrapper{
-			Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+			Log:   log.New(io.Discard, "", log.LstdFlags),
 			Debug: false,
 		}
 	}
@@ -198,7 +198,7 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 		tc.Log = cfg.Logger
 	} else {
 		tc.Log = &LogWrapper{
-			Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+			Log:   log.New(io.Discard, "", log.LstdFlags),
 			Debug: false,
 		}
 	}
@@ -357,7 +357,7 @@ func testTraceMetricsDir(dir string) error {
 		return fmt.Errorf("not a directory (%s)", dir)
 	}
 
-	tf, err := ioutil.TempFile(dir, "wtest")
+	tf, err := os.CreateTemp(dir, "wtest")
 	if err != nil {
 		return fmt.Errorf("unable to write to (%s): %w", dir, err)
 	}
