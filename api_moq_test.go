@@ -39,6 +39,9 @@ var _ API = &APIMock{}
 // 			SearchCheckBundlesFunc: func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.CheckBundle, error) {
 // 				panic("mock out the SearchCheckBundles method")
 // 			},
+// 			UpdateCheckBundleFunc: func(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error) {
+// 				panic("mock out the UpdateCheckBundle method")
+// 			},
 // 		}
 //
 // 		// use mockedAPI in code that requires API
@@ -66,6 +69,9 @@ type APIMock struct {
 
 	// SearchCheckBundlesFunc mocks the SearchCheckBundles method.
 	SearchCheckBundlesFunc func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.CheckBundle, error)
+
+	// UpdateCheckBundleFunc mocks the UpdateCheckBundle method.
+	UpdateCheckBundleFunc func(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -106,6 +112,11 @@ type APIMock struct {
 			// FilterCriteria is the filterCriteria argument value.
 			FilterCriteria *apiclient.SearchFilterType
 		}
+		// UpdateCheckBundle holds details about calls to the UpdateCheckBundle method.
+		UpdateCheckBundle []struct {
+			// Cfg is the cfg argument value.
+			Cfg *apiclient.CheckBundle
+		}
 	}
 	lockCreateCheckBundle  sync.RWMutex
 	lockFetchBroker        sync.RWMutex
@@ -114,6 +125,7 @@ type APIMock struct {
 	lockGet                sync.RWMutex
 	lockSearchBrokers      sync.RWMutex
 	lockSearchCheckBundles sync.RWMutex
+	lockUpdateCheckBundle  sync.RWMutex
 }
 
 // CreateCheckBundle calls CreateCheckBundleFunc.
@@ -333,5 +345,36 @@ func (mock *APIMock) SearchCheckBundlesCalls() []struct {
 	mock.lockSearchCheckBundles.RLock()
 	calls = mock.calls.SearchCheckBundles
 	mock.lockSearchCheckBundles.RUnlock()
+	return calls
+}
+
+// UpdateCheckBundle calls UpdateCheckBundleFunc.
+func (mock *APIMock) UpdateCheckBundle(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error) {
+	if mock.UpdateCheckBundleFunc == nil {
+		panic("APIMock.UpdateCheckBundleFunc: method is nil but API.UpdateCheckBundle was just called")
+	}
+	callInfo := struct {
+		Cfg *apiclient.CheckBundle
+	}{
+		Cfg: cfg,
+	}
+	mock.lockUpdateCheckBundle.Lock()
+	mock.calls.UpdateCheckBundle = append(mock.calls.UpdateCheckBundle, callInfo)
+	mock.lockUpdateCheckBundle.Unlock()
+	return mock.UpdateCheckBundleFunc(cfg)
+}
+
+// UpdateCheckBundleCalls gets all the calls that were made to UpdateCheckBundle.
+// Check the length with:
+//     len(mockedAPI.UpdateCheckBundleCalls())
+func (mock *APIMock) UpdateCheckBundleCalls() []struct {
+	Cfg *apiclient.CheckBundle
+} {
+	var calls []struct {
+		Cfg *apiclient.CheckBundle
+	}
+	mock.lockUpdateCheckBundle.RLock()
+	calls = mock.calls.UpdateCheckBundle
+	mock.lockUpdateCheckBundle.RUnlock()
 	return calls
 }
