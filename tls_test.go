@@ -8,7 +8,7 @@ package trapcheck
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"reflect"
 	"testing"
@@ -19,7 +19,7 @@ import (
 func TestTrapCheck_fetchCert(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -89,7 +89,7 @@ func TestTrapCheck_fetchCert(t *testing.T) {
 func TestTrapCheck_setBrokerTLSConfig(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
