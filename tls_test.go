@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/circonus-labs/go-apiclient"
+	"github.com/circonus-labs/go-apiclient/config"
 )
 
 func TestTrapCheck_fetchCert(t *testing.T) {
@@ -233,6 +234,9 @@ func TestTrapCheck_setBrokerTLSConfig(t *testing.T) {
 			tc.tlsConfig = tt.tlsConfig
 			tc.checkBundle = tt.checkBundle
 			tc.broker = tt.broker
+			if tc.checkBundle != nil {
+				tc.submissionURL = tt.checkBundle.Config[config.SubmissionURL]
+			}
 
 			if err := tc.setBrokerTLSConfig(); (err != nil) != tt.wantErr {
 				t.Errorf("TrapCheck.setBrokerTLSConfig() error = %v, wantErr %v", err, tt.wantErr)

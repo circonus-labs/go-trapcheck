@@ -56,6 +56,7 @@ func TestNew(t *testing.T) {
 							Brokers: []string{"/broker/123"},
 							Type:    "httptrap",
 							Config:  apiclient.CheckBundleConfig{"submission_url": fmt.Sprintf("http://%s:%d", brokerIP, brokerPort)},
+							Status:  "active",
 						}, nil
 					},
 					FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
@@ -94,7 +95,14 @@ func TestNew(t *testing.T) {
 }
 
 func TestTrapCheck_GetBrokerTLSConfig(t *testing.T) {
-	tc := &TrapCheck{}
+	tc := &TrapCheck{
+		checkBundle: &apiclient.CheckBundle{
+			Config: apiclient.CheckBundleConfig{
+				"submission_url": "https://127.0.0.1",
+			},
+		},
+		submissionURL: "https://127.0.0.1",
+	}
 	tc.Log = &LogWrapper{
 		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
@@ -144,20 +152,20 @@ func TestTrapCheck_GetCheckBundle(t *testing.T) {
 
 	tests := []struct {
 		bundle  *apiclient.CheckBundle
-		want    *apiclient.CheckBundle
 		name    string
+		want    apiclient.CheckBundle
 		wantErr bool
 	}{
 		{
 			name:    "nil",
 			bundle:  nil,
-			want:    nil,
+			want:    apiclient.CheckBundle{},
 			wantErr: true,
 		},
 		{
 			name:    "valid",
 			bundle:  &apiclient.CheckBundle{CID: "/check_bundle/123"},
-			want:    &apiclient.CheckBundle{CID: "/check_bundle/123"},
+			want:    apiclient.CheckBundle{CID: "/check_bundle/123"},
 			wantErr: false,
 		},
 	}
