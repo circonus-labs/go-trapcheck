@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 //
 
+//go:build go1.17
+
 package trapcheck
 
 import (
@@ -291,6 +293,18 @@ func (tc *TrapCheck) IsNewCheckBundle() bool {
 func (tc *TrapCheck) GetCheckBundle() (apiclient.CheckBundle, error) {
 	if tc.checkBundle == nil {
 		return apiclient.CheckBundle{}, fmt.Errorf("trap check not initialized/created")
+	}
+	return *tc.checkBundle, nil
+}
+
+// RefreshCheckBundle will pull down a fresh copy from the API.
+func (tc *TrapCheck) RefreshCheckBundle() (apiclient.CheckBundle, error) {
+	refreshed, refreshErr := tc.refreshCheck()
+	if refreshErr != nil {
+		return apiclient.CheckBundle{}, refreshErr
+	}
+	if !refreshed {
+		return apiclient.CheckBundle{}, fmt.Errorf("check bundle could not be refreshed - using custom submission URL %s", tc.custSubmissionURL)
 	}
 	return *tc.checkBundle, nil
 }
