@@ -9,12 +9,18 @@ import (
 )
 
 func (tc *TrapCheck) UpdateCheckTags(ctx context.Context, tags []string) (*apiclient.CheckBundle, error) {
+	if tc.checkBundle == nil {
+		return nil, fmt.Errorf("invalid state, check bundle is nil")
+	}
 	if len(tags) == 0 {
 		return nil, nil
 	}
 
 	update := false
 	for _, tag := range tags {
+		if tag == "" {
+			continue
+		}
 		found := false
 		tagParts := strings.SplitN(tag, ":", 2)
 		for j, ctag := range tc.checkBundle.Tags {
