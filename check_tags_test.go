@@ -3,8 +3,8 @@ package trapcheck
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
+	"os"
 	"reflect"
 	"testing"
 
@@ -14,8 +14,8 @@ import (
 func TestTrapCheck_UpdateCheckTags(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(io.Discard, "", log.LstdFlags),
-		Debug: false,
+		Log:   log.New(os.Stdout, "", log.LstdFlags),
+		Debug: true,
 	}
 
 	tests := []struct {
@@ -110,6 +110,15 @@ func TestTrapCheck_UpdateCheckTags(t *testing.T) {
 					return nil, fmt.Errorf("api error 500")
 				},
 			},
+		},
+		{
+			name: "no update, multiple tag formats",
+			bundle: &apiclient.CheckBundle{
+				Tags: []string{"foo:bar", "baz:", ":bar", "qux"},
+			},
+			newTags: []string{"foo:bar", "baz:", ":bar", "qux"},
+			want:    nil,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
