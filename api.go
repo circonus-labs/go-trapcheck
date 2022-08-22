@@ -20,4 +20,5 @@ type API interface {
 	FetchCheckBundle(cid apiclient.CIDType) (*apiclient.CheckBundle, error)
 	CreateCheckBundle(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error)
 	SearchCheckBundles(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.CheckBundle, error)
+	UpdateCheckBundle(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error)
 }

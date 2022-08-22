@@ -7,7 +7,7 @@ package trapcheck
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +21,7 @@ import (
 func TestTrapCheck_brokerSupportsCheckType(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -83,7 +83,7 @@ func TestTrapCheck_brokerSupportsCheckType(t *testing.T) {
 func TestTrapCheck_getBrokerCNList(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -208,7 +208,7 @@ func TestTrapCheck_getBrokerCNList(t *testing.T) {
 func TestTrapCheck_isValidBroker(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -334,7 +334,7 @@ func TestTrapCheck_isValidBroker(t *testing.T) {
 func TestTrapCheck_getBroker(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 

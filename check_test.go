@@ -7,7 +7,7 @@ package trapcheck
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +21,7 @@ import (
 func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -86,7 +86,7 @@ func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
 func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -150,6 +150,37 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 			},
 		},
 		{
+			name:        "invalid, check not active",
+			checkConfig: &apiclient.CheckBundle{CID: "/check_bundle/123"},
+			wantErr:     true,
+			client: &APIMock{
+				FetchCheckBundleFunc: func(cid apiclient.CIDType) (*apiclient.CheckBundle, error) {
+					return &apiclient.CheckBundle{
+						CID:     "/check_bundle/123",
+						Config:  apiclient.CheckBundleConfig{"submission_url": "http://127.0.0.1"},
+						Brokers: []string{"/broker/123"},
+						Type:    "httptrap:cua:host:linux",
+						Status:  "invalid",
+					}, nil
+				},
+				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
+					return &apiclient.Broker{
+						CID:  "/broker/123",
+						Name: "foo",
+						Type: circonusType,
+						Details: []apiclient.BrokerDetail{
+							{
+								Status:  statusActive,
+								Modules: []string{"httptrap"},
+								IP:      &brokerIP,
+								Port:    &brokerPort,
+							},
+						},
+					}, nil
+				},
+			},
+		},
+		{
 			name:        "valid",
 			checkConfig: &apiclient.CheckBundle{CID: "/check_bundle/123"},
 			wantErr:     false,
@@ -160,6 +191,7 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 						Config:  apiclient.CheckBundleConfig{"submission_url": "http://127.0.0.1"},
 						Brokers: []string{"/broker/123"},
 						Type:    "httptrap:cua:host:linux",
+						Status:  statusActive,
 					}, nil
 				},
 				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
@@ -195,9 +227,25 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 func TestTrapCheck_createCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "beep boop")
+	}))
+	defer ts.Close()
+
+	tsURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatalf("creating test broker: %s", err)
+	}
+	brokerIP := tsURL.Hostname()
+	bp, err := strconv.Atoi(tsURL.Port())
+	if err != nil {
+		t.Fatalf("parsing test broker port: %s", err)
+	}
+	brokerPort := uint16(bp)
 
 	tests := []struct {
 		client  API
@@ -216,6 +264,24 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 				CreateCheckBundleFunc: func(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error) {
 					return nil, fmt.Errorf("API 500 - failure")
 				},
+				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+					return &[]apiclient.Broker{
+						{
+							CID:  "/broker/123",
+							Name: "foo",
+							Type: circonusType,
+							Details: []apiclient.BrokerDetail{
+								{
+									CN:      "testbroker.example.com",
+									Status:  statusActive,
+									Modules: []string{"httptrap"},
+									IP:      &brokerIP,
+									Port:    &brokerPort,
+								},
+							},
+						},
+					}, nil
+				},
 			},
 			wantErr: true,
 		},
@@ -226,6 +292,24 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 				CreateCheckBundleFunc: func(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error) {
 					return &apiclient.CheckBundle{CID: "/check_bundle/123"}, nil
 				},
+				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+					return &[]apiclient.Broker{
+						{
+							CID:  "/broker/123",
+							Name: "foo",
+							Type: circonusType,
+							Details: []apiclient.BrokerDetail{
+								{
+									CN:      "testbroker.example.com",
+									Status:  statusActive,
+									Modules: []string{"httptrap"},
+									IP:      &brokerIP,
+									Port:    &brokerPort,
+								},
+							},
+						},
+					}, nil
+				},
 			},
 			wantErr: false,
 		},
@@ -233,6 +317,11 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.name == "valid" {
+				if err := tc.applyCheckBundleDefaults(tt.cfg); err != nil {
+					t.Fatalf("applying defaults: %s", err)
+				}
+			}
 			tc.client = tt.client
 			if err := tc.createCheckBundle(tt.cfg); (err != nil) != tt.wantErr {
 				t.Errorf("TrapCheck.createCheckBundle() error = %v, wantErr %v", err, tt.wantErr)
@@ -244,7 +333,7 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 func TestTrapCheck_findCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -378,9 +467,25 @@ func TestTrapCheck_findCheckBundle(t *testing.T) {
 func TestTrapCheck_initCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "beep boop")
+	}))
+	defer ts.Close()
+
+	tsURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatalf("creating test broker: %s", err)
+	}
+	brokerIP := tsURL.Hostname()
+	bp, err := strconv.Atoi(tsURL.Port())
+	if err != nil {
+		t.Fatalf("parsing test broker port: %s", err)
+	}
+	brokerPort := uint16(bp)
 
 	tests := []struct {
 		client          API
@@ -425,6 +530,24 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 				SearchCheckBundlesFunc: func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.CheckBundle, error) {
 					return &[]apiclient.CheckBundle{}, nil
 				},
+				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+					return &[]apiclient.Broker{
+						{
+							CID:  "/broker/123",
+							Name: "foo",
+							Type: circonusType,
+							Details: []apiclient.BrokerDetail{
+								{
+									CN:      "testbroker.example.com",
+									Status:  statusActive,
+									Modules: []string{"httptrap"},
+									IP:      &brokerIP,
+									Port:    &brokerPort,
+								},
+							},
+						},
+					}, nil
+				},
 			},
 		},
 		{
@@ -438,6 +561,24 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 				},
 				SearchCheckBundlesFunc: func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.CheckBundle, error) {
 					return &[]apiclient.CheckBundle{}, nil
+				},
+				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+					return &[]apiclient.Broker{
+						{
+							CID:  "/broker/123",
+							Name: "foo",
+							Type: circonusType,
+							Details: []apiclient.BrokerDetail{
+								{
+									CN:      "testbroker.example.com",
+									Status:  statusActive,
+									Modules: []string{"httptrap"},
+									IP:      &brokerIP,
+									Port:    &brokerPort,
+								},
+							},
+						},
+					}, nil
 				},
 			},
 		},
@@ -457,7 +598,7 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 func TestTrapCheck_initializeCheck(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -491,6 +632,7 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 				CID:     "/check_bundle/123",
 				Brokers: []string{"/broker/123"},
 				Type:    "httptrap",
+				Status:  statusActive,
 			},
 			client: &APIMock{
 				FetchCheckBundleFunc: func(cid apiclient.CIDType) (*apiclient.CheckBundle, error) {
@@ -505,6 +647,7 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 				CID:     "/check_bundle/123",
 				Brokers: []string{"/broker/123"},
 				Type:    "httptrap",
+				Status:  statusActive,
 			},
 			client: &APIMock{
 				FetchCheckBundleFunc: func(cid apiclient.CIDType) (*apiclient.CheckBundle, error) {
@@ -526,6 +669,7 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 						Brokers: []string{"/broker/123"},
 						Type:    "httptrap",
 						Config:  apiclient.CheckBundleConfig{"submission_url": fmt.Sprintf("http://%s:%d", brokerIP, brokerPort)},
+						Status:  statusActive,
 					}, nil
 				},
 				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
@@ -557,6 +701,7 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 							Type:    "httptrap:foo:bar",
 							Brokers: []string{"/broker/123"},
 							Config:  apiclient.CheckBundleConfig{"submission_url": fmt.Sprintf("http://%s:%d", brokerIP, brokerPort)},
+							Status:  statusActive,
 						},
 					}, nil
 				},
@@ -593,6 +738,7 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 						Type:    "httptrap:foo:bar",
 						Brokers: []string{"/broker/123"},
 						Config:  apiclient.CheckBundleConfig{"submission_url": fmt.Sprintf("http://%s:%d", brokerIP, brokerPort)},
+						Status:  statusActive,
 					}, nil
 				},
 				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {

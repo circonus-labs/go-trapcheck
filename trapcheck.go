@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 //
 
+//go:build go1.17
+
 package trapcheck
 
 import (
@@ -10,7 +12,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -104,7 +106,7 @@ func New(cfg *Config) (*TrapCheck, error) {
 		tc.Log = cfg.Logger
 	} else {
 		tc.Log = &LogWrapper{
-			Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+			Log:   log.New(io.Discard, "", log.LstdFlags),
 			Debug: false,
 		}
 	}
@@ -198,7 +200,7 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 		tc.Log = cfg.Logger
 	} else {
 		tc.Log = &LogWrapper{
-			Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+			Log:   log.New(io.Discard, "", log.LstdFlags),
 			Debug: false,
 		}
 	}
@@ -295,6 +297,18 @@ func (tc *TrapCheck) GetCheckBundle() (apiclient.CheckBundle, error) {
 	return *tc.checkBundle, nil
 }
 
+// RefreshCheckBundle will pull down a fresh copy from the API.
+func (tc *TrapCheck) RefreshCheckBundle() (apiclient.CheckBundle, error) {
+	refreshed, refreshErr := tc.refreshCheck()
+	if refreshErr != nil {
+		return apiclient.CheckBundle{}, refreshErr
+	}
+	if !refreshed {
+		return apiclient.CheckBundle{}, fmt.Errorf("check bundle could not be refreshed - using custom submission URL %s", tc.custSubmissionURL)
+	}
+	return *tc.checkBundle, nil
+}
+
 // GetBrokerTLSConfig returns the current tls config - can be used
 // for pre-seeding multiple check creation without repeatedly
 // calling the API for the same CA cert - returns tls config, error.
@@ -357,7 +371,7 @@ func testTraceMetricsDir(dir string) error {
 		return fmt.Errorf("not a directory (%s)", dir)
 	}
 
-	tf, err := ioutil.TempFile(dir, "wtest")
+	tf, err := os.CreateTemp(dir, "wtest")
 	if err != nil {
 		return fmt.Errorf("unable to write to (%s): %w", dir, err)
 	}

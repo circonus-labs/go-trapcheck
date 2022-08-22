@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -237,7 +236,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapRes
 		return nil, false, fmt.Errorf("making request: %w", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, false, fmt.Errorf("reading response body: %w", err)
 	}

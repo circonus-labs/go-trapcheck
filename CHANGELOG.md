@@ -1,3 +1,15 @@
+# v0.0.9
+
+* chore: add RefreshCheckBundle tests
+* feet: add `RefreshCheckBundle` method
+* chore: add UpdateCheckTags tests
+* feat: add `UpdateCheckTags` method
+* fix: ensure the trap check has been initialized
+* feat(deps): bump go-apiclient from 0.7.15 to 0.7.18
+* feat(deps): bump go-retryablehttp from 0.7.0 to 0.7.1
+* fix(lint): ioutil deprecation
+* chore: update to go1.17
+
 # v0.0.8
 
 * add: reset flag and handle rest in setBrokerTLSConfig

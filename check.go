@@ -129,6 +129,10 @@ func (tc *TrapCheck) createCheckBundle(cfg *apiclient.CheckBundle) error {
 	if cfg == nil {
 		return fmt.Errorf("invalid check bundle config (nil)")
 	}
+	if cfg.Type == "" {
+		return fmt.Errorf("invalid check bundle config (no check type)")
+	}
+
 	// add broker here, no reason to do it in applying defaults as that's
 	// done every time, even when a check could be found (so no point "selecting"
 	// a broker to create a check, when a check already exists)
@@ -139,6 +143,7 @@ func (tc *TrapCheck) createCheckBundle(cfg *apiclient.CheckBundle) error {
 		}
 		cfg.Brokers = []string{tc.broker.CID}
 	}
+
 	bundle, err := tc.client.CreateCheckBundle(cfg)
 	if err != nil {
 		return fmt.Errorf("create check bundle: %w", err)

@@ -8,7 +8,7 @@ package trapcheck
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -56,6 +56,7 @@ func TestNew(t *testing.T) {
 							Brokers: []string{"/broker/123"},
 							Type:    "httptrap",
 							Config:  apiclient.CheckBundleConfig{"submission_url": fmt.Sprintf("http://%s:%d", brokerIP, brokerPort)},
+							Status:  "active",
 						}, nil
 					},
 					FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
@@ -94,9 +95,16 @@ func TestNew(t *testing.T) {
 }
 
 func TestTrapCheck_GetBrokerTLSConfig(t *testing.T) {
-	tc := &TrapCheck{}
+	tc := &TrapCheck{
+		checkBundle: &apiclient.CheckBundle{
+			Config: apiclient.CheckBundleConfig{
+				"submission_url": "https://127.0.0.1",
+			},
+		},
+		submissionURL: "https://127.0.0.1",
+	}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
@@ -138,26 +146,26 @@ func TestTrapCheck_GetBrokerTLSConfig(t *testing.T) {
 func TestTrapCheck_GetCheckBundle(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(ioutil.Discard, "", log.LstdFlags),
+		Log:   log.New(io.Discard, "", log.LstdFlags),
 		Debug: false,
 	}
 
 	tests := []struct {
 		bundle  *apiclient.CheckBundle
-		want    *apiclient.CheckBundle
 		name    string
+		want    apiclient.CheckBundle
 		wantErr bool
 	}{
 		{
 			name:    "nil",
 			bundle:  nil,
-			want:    nil,
+			want:    apiclient.CheckBundle{},
 			wantErr: true,
 		},
 		{
 			name:    "valid",
 			bundle:  &apiclient.CheckBundle{CID: "/check_bundle/123"},
-			want:    &apiclient.CheckBundle{CID: "/check_bundle/123"},
+			want:    apiclient.CheckBundle{CID: "/check_bundle/123"},
 			wantErr: false,
 		},
 	}
@@ -172,6 +180,68 @@ func TestTrapCheck_GetCheckBundle(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TrapCheck.GetCheckBundle() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTrapCheck_RefreshCheckBundle(t *testing.T) {
+	tc := &TrapCheck{}
+	tc.Log = &LogWrapper{
+		Log:   log.New(io.Discard, "", log.LstdFlags),
+		Debug: false,
+	}
+
+	testBundle := &apiclient.CheckBundle{
+		CID:     "/check_bundle/123",
+		Brokers: []string{"/broker/123"},
+		Type:    "httptrap",
+		Config:  apiclient.CheckBundleConfig{"submission_url": "http://10.1.2.3:12345/"},
+		Status:  "active",
+	}
+
+	tests := []struct {
+		client            API
+		checkBundle       *apiclient.CheckBundle
+		custSubmissionURL string
+		name              string
+		want              apiclient.CheckBundle
+		wantErr           bool
+	}{
+		{
+			name:              "can't referesh, custom submission URL set",
+			custSubmissionURL: "http://127.0.0.1:8080/write/local/",
+			wantErr:           true,
+		},
+		{
+			name:    "invalid state (nil check bundle)",
+			wantErr: true,
+		},
+		{
+			name:        "valid",
+			checkBundle: testBundle,
+			want:        *testBundle,
+			wantErr:     false,
+			client: &APIMock{
+				FetchCheckBundleFunc: func(cid apiclient.CIDType) (*apiclient.CheckBundle, error) {
+					return testBundle, nil
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			tc.client = tt.client
+			tc.custSubmissionURL = tt.custSubmissionURL
+			tc.checkBundle = tt.checkBundle
+			got, err := tc.RefreshCheckBundle()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TrapCheck.RefreshCheckBundle() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("TrapCheck.RefreshCheckBundle() = %v, want %v", got, tt.want)
 			}
 		})
 	}
