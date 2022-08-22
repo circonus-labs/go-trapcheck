@@ -3,8 +3,8 @@ package trapcheck
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
-	"os"
 	"reflect"
 	"testing"
 
@@ -14,8 +14,8 @@ import (
 func TestTrapCheck_UpdateCheckTags(t *testing.T) {
 	tc := &TrapCheck{}
 	tc.Log = &LogWrapper{
-		Log:   log.New(os.Stdout, "", log.LstdFlags),
-		Debug: true,
+		Log:   log.New(io.Discard, "", log.LstdFlags),
+		Debug: false,
 	}
 
 	tests := []struct {
