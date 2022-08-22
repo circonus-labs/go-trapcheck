@@ -111,6 +111,15 @@ func TestTrapCheck_UpdateCheckTags(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "no update, multiple tag formats",
+			bundle: &apiclient.CheckBundle{
+				Tags: []string{"foo:bar", "baz:", ":bar", "qux"},
+			},
+			newTags: []string{"foo:bar", "baz:", ":bar", "qux"},
+			want:    nil,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
