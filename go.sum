@@ -1,5 +1,5 @@
-github.com/circonus-labs/go-apiclient v0.7.18 h1:OrRHUwoFroEUN+3KylQkdQOaTN1s3SCFh9E6D7Eb9PQ=
-github.com/circonus-labs/go-apiclient v0.7.18/go.mod h1:NCu3kJ282ZGzr7vxzFH/S28y1nW9DZ37f8L7veDENFc=
+github.com/circonus-labs/go-apiclient v0.7.20 h1:pGcXVmq5Cn8FHN2P0eBtHgCuEHNSO0b9caoc9dCBokg=
+github.com/circonus-labs/go-apiclient v0.7.20/go.mod h1:NCu3kJ282ZGzr7vxzFH/S28y1nW9DZ37f8L7veDENFc=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
