@@ -77,6 +77,8 @@ func New(cfg *Config) (*TrapCheck, error) {
 		return nil, fmt.Errorf("invalid configuration (nil api client)")
 	}
 
+	brokerList.Init(cfg.Client, cfg.Logger)
+
 	tc := &TrapCheck{
 		client:            cfg.Client,
 		checkSearchTags:   cfg.CheckSearchTags,

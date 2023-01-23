@@ -29,6 +29,7 @@ func (tc *TrapCheck) setBrokerTLSConfig() error {
 		tc.tlsConfig = nil // don't use, refresh and reset
 		tc.resetTLSConfig = false
 		// tc.custTLSConfig = nil // don't use, refresh and reset
+		brokerList.RefreshBrokers()
 	}
 
 	// setBrokerTLSConfig has already initialized it
