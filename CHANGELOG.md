@@ -1,5 +1,6 @@
 # v0.0.10
 
+* feat: add gzip size of sent data
 * feat: singleton broker list [CIRC-9594]
 
 # v0.0.9
