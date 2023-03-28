@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/circonus-labs/go-apiclient"
+	brokerList "github.com/circonus-labs/go-trapcheck/internal/broker_list"
 )
 
 func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
@@ -202,8 +203,14 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			brokerList = &brokers{}
-			brokerList.Init(tt.brokerClient, tc.Log)
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			tc.client = tt.client
 			tc.checkConfig = tt.checkConfig
 			if err := tc.fetchCheckBundle(); (err != nil) != tt.wantErr {
@@ -327,8 +334,14 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 				}
 			}
 			tc.client = tt.client
-			brokerList = &brokers{}
-			brokerList.Init(tt.brokerClient, tc.Log)
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			if err := tc.createCheckBundle(tt.cfg); (err != nil) != tt.wantErr {
 				t.Errorf("TrapCheck.createCheckBundle() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -610,8 +623,14 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tc.client = tt.client
-			brokerList = &brokers{}
-			brokerList.Init(tt.brokerClient, tc.Log)
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			tc.checkSearchTags = tt.checkSearchTags
 			if err := tc.initCheckBundle(tt.cfg); (err != nil) != tt.wantErr {
 				t.Errorf("TrapCheck.initCheckBundle() error = %v, wantErr %v", err, tt.wantErr)
@@ -792,8 +811,14 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tc.client = tt.client
-			brokerList = &brokers{}
-			brokerList.Init(tt.brokerClient, tc.Log)
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			tc.checkConfig = tt.checkConfig
 			tc.checkSearchTags = tt.checkSearchTags
 			if err := tc.initializeCheck(); (err != nil) != tt.wantErr {

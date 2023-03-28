@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/circonus-labs/go-apiclient"
+	brokerList "github.com/circonus-labs/go-trapcheck/internal/broker_list"
 )
 
 func TestTrapCheck_brokerSupportsCheckType(t *testing.T) {
@@ -565,8 +566,14 @@ func TestTrapCheck_getBroker(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			brokerList = &brokers{}
-			brokerList.Init(tt.client, tc.Log)
+			if err := brokerList.Init(tt.client, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			// tc.client = tt.client
 			tc.checkConfig = tt.checkConfig
 			tc.checkBundle = tt.checkBundle

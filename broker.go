@@ -35,7 +35,7 @@ func (tc *TrapCheck) fetchBroker(cid, checkType string) error {
 	if checkType == "" {
 		return fmt.Errorf("invalid check type (empty)")
 	}
-	broker, err := brokerList.GetBroker(cid)
+	broker, err := tc.brokerList.GetBroker(cid)
 	// broker, err := tc.client.FetchBroker(apiclient.CIDType(&cid))
 	if err != nil {
 		return fmt.Errorf("retrieving broker (%s): %w", cid, err)
@@ -64,13 +64,13 @@ func (tc *TrapCheck) getBroker(checkType string) error {
 		// filter := apiclient.SearchFilterType{
 		// 	"f__tags_has": tc.brokerSelectTags,
 		// }
-		bl, err := brokerList.SearchBrokerList(tc.brokerSelectTags) //tc.client.SearchBrokers(nil, &filter)
+		bl, err := tc.brokerList.SearchBrokerList(tc.brokerSelectTags) // tc.client.SearchBrokers(nil, &filter)
 		if err != nil {
 			return fmt.Errorf("search brokers: %w", err)
 		}
 		list = bl
 	} else {
-		bl, err := brokerList.GetBrokerList() // tc.client.FetchBrokers()
+		bl, err := tc.brokerList.GetBrokerList() // tc.client.FetchBrokers()
 		if err != nil {
 			return fmt.Errorf("fetch brokers: %w", err)
 		}

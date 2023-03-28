@@ -20,6 +20,7 @@ import (
 
 	"github.com/circonus-labs/go-apiclient"
 	"github.com/circonus-labs/go-apiclient/config"
+	brokerList "github.com/circonus-labs/go-trapcheck/internal/broker_list"
 )
 
 type Config struct {
@@ -49,14 +50,15 @@ type Config struct {
 type TrapCheck struct {
 	client                API
 	Log                   Logger
+	brokerList            brokerList.BrokerList
 	checkConfig           *apiclient.CheckBundle
 	checkBundle           *apiclient.CheckBundle
 	broker                *apiclient.Broker
 	tlsConfig             *tls.Config
 	custTLSConfig         *tls.Config
-	submissionURL         string
 	custSubmissionURL     string
 	traceMetrics          string
+	submissionURL         string
 	checkSearchTags       apiclient.TagType
 	brokerSelectTags      apiclient.TagType
 	brokerMaxResponseTime time.Duration
@@ -76,8 +78,6 @@ func New(cfg *Config) (*TrapCheck, error) {
 	if cfg.Client == nil {
 		return nil, fmt.Errorf("invalid configuration (nil api client)")
 	}
-
-	brokerList.Init(cfg.Client, cfg.Logger)
 
 	tc := &TrapCheck{
 		client:            cfg.Client,
@@ -111,6 +111,16 @@ func New(cfg *Config) (*TrapCheck, error) {
 			Log:   log.New(io.Discard, "", log.LstdFlags),
 			Debug: false,
 		}
+	}
+
+	if err := brokerList.Init(cfg.Client, tc.Log); err != nil {
+		return nil, fmt.Errorf("initializing broker list: %w", err)
+	}
+
+	if bl, err := brokerList.GetInstance(); err != nil {
+		return nil, fmt.Errorf("getting broker list instance: %w", err)
+	} else {
+		tc.brokerList = bl
 	}
 
 	dur := cfg.BrokerMaxResponseTime
