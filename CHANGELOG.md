@@ -1,3 +1,7 @@
+# v0.0.10
+
+* feat: singleton broker list [CIRC-9594]
+
 # v0.0.9
 
 * chore: add RefreshCheckBundle tests
