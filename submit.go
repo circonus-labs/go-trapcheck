@@ -26,14 +26,15 @@ import (
 )
 
 type TrapResult struct {
-	CheckUUID       string
-	Error           string `json:"error,omitempty"`
-	SubmitUUID      string
-	Filtered        uint64 `json:"filtered,omitempty"`
-	Stats           uint64 `json:"stats"`
-	SubmitDuration  time.Duration
-	LastReqDuration time.Duration
-	BytesSent       int
+	CheckUUID       string        `json:"check_uuid"`
+	Error           string        `json:"error,omitempty"`
+	SubmitUUID      string        `json:"submit_uuid"`
+	Filtered        uint64        `json:"filtered,omitempty"`
+	Stats           uint64        `json:"stats"`
+	SubmitDuration  time.Duration `json:"submit_dur"`
+	LastReqDuration time.Duration `json:"last_req_dur"`
+	BytesSent       int           `json:"bytes_sent"`
+	BytesSentGzip   int           `json:"bytes_sent_gz"`
 }
 
 const (
@@ -73,6 +74,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapRes
 				MaxIdleConns:        1,
 				MaxIdleConnsPerHost: 0,
 			},
+			Timeout: 60 * time.Second, // hard 60s timeout
 		}
 	} else {
 		client = &http.Client{
@@ -88,6 +90,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapRes
 				MaxIdleConns:        1,
 				MaxIdleConnsPerHost: 0,
 			},
+			Timeout: 60 * time.Second, // hard 60s timeout
 		}
 	}
 
@@ -256,7 +259,8 @@ func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapRes
 	result.SubmitUUID = submitUUID
 	result.SubmitDuration = time.Since(start)
 	result.LastReqDuration = time.Since(reqStart)
-	result.BytesSent = dataLen
+	result.BytesSent = metricLen
+	result.BytesSentGzip = dataLen
 	if result.Error == "" {
 		result.Error = "none"
 	}

@@ -35,14 +35,15 @@ func (tc *TrapCheck) fetchBroker(cid, checkType string) error {
 	if checkType == "" {
 		return fmt.Errorf("invalid check type (empty)")
 	}
-	broker, err := tc.client.FetchBroker(apiclient.CIDType(&cid))
+	broker, err := tc.brokerList.GetBroker(cid)
+	// broker, err := tc.client.FetchBroker(apiclient.CIDType(&cid))
 	if err != nil {
 		return fmt.Errorf("retrieving broker (%s): %w", cid, err)
 	}
-	if valid, err := tc.isValidBroker(broker, checkType); !valid {
+	if valid, err := tc.isValidBroker(&broker, checkType); !valid {
 		return fmt.Errorf("%s (%s) is an invalid broker for check type %s: %w", tc.broker.Name, tc.checkConfig.Brokers[0], checkType, err)
 	}
-	tc.broker = broker
+	tc.broker = &broker
 	return nil
 }
 
@@ -57,33 +58,33 @@ func (tc *TrapCheck) getBroker(checkType string) error {
 	//
 	// otherwise, select an applicable broker
 	//
-	var brokerList *[]apiclient.Broker
+	var list *[]apiclient.Broker
 
 	if len(tc.brokerSelectTags) > 0 {
-		filter := apiclient.SearchFilterType{
-			"f__tags_has": tc.brokerSelectTags,
-		}
-		bl, err := tc.client.SearchBrokers(nil, &filter)
+		// filter := apiclient.SearchFilterType{
+		// 	"f__tags_has": tc.brokerSelectTags,
+		// }
+		bl, err := tc.brokerList.SearchBrokerList(tc.brokerSelectTags) // tc.client.SearchBrokers(nil, &filter)
 		if err != nil {
 			return fmt.Errorf("search brokers: %w", err)
 		}
-		brokerList = bl
+		list = bl
 	} else {
-		bl, err := tc.client.FetchBrokers()
+		bl, err := tc.brokerList.GetBrokerList() // tc.client.FetchBrokers()
 		if err != nil {
 			return fmt.Errorf("fetch brokers: %w", err)
 		}
-		brokerList = bl
+		list = bl
 	}
 
-	if len(*brokerList) == 0 {
+	if len(*list) == 0 {
 		return fmt.Errorf("zero brokers found")
 	}
 
 	validBrokers := make(map[string]apiclient.Broker)
 	haveEnterprise := false
 
-	for _, broker := range *brokerList {
+	for _, broker := range *list {
 		broker := broker
 		valid, err := tc.isValidBroker(&broker, checkType)
 		if err != nil {
@@ -109,7 +110,7 @@ func (tc *TrapCheck) getBroker(checkType string) error {
 	}
 
 	if len(validBrokers) == 0 {
-		return fmt.Errorf("found %d broker(s), zero are valid", len(*brokerList))
+		return fmt.Errorf("found %d broker(s), zero are valid", len(*list))
 	}
 
 	validBrokerKeys := reflect.ValueOf(validBrokers).MapKeys()

@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/circonus-labs/go-apiclient"
+	brokerList "github.com/circonus-labs/go-trapcheck/internal/broker_list"
 )
 
 func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
@@ -25,27 +26,10 @@ func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
 		Debug: false,
 	}
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "beep boop")
-	}))
-	defer ts.Close()
-
-	tsURL, err := url.Parse(ts.URL)
-	if err != nil {
-		t.Fatalf("creating test broker: %s", err)
-	}
-	brokerIP := tsURL.Hostname()
-	bp, err := strconv.Atoi(tsURL.Port())
-	if err != nil {
-		t.Fatalf("parsing test broker port: %s", err)
-	}
-	brokerPort := uint16(bp)
-
 	type args struct {
 		cfg *apiclient.CheckBundle
 	}
 	tests := []struct {
-		client  API
 		args    args
 		name    string
 		wantErr bool
@@ -54,23 +38,6 @@ func TestTrapCheck_applyCheckBundleDefaults(t *testing.T) {
 			name:    "basic",
 			args:    args{cfg: &apiclient.CheckBundle{Brokers: []string{"/broker/123"}}},
 			wantErr: false,
-			client: &APIMock{
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return &apiclient.Broker{
-						CID:  "/broker/123",
-						Name: "foo",
-						Type: circonusType,
-						Details: []apiclient.BrokerDetail{
-							{
-								Status:  statusActive,
-								Modules: []string{"httptrap"},
-								IP:      &brokerIP,
-								Port:    &brokerPort,
-							},
-						},
-					}, nil
-				},
-			},
 		},
 	}
 	for _, tt := range tests {
@@ -106,11 +73,60 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 	}
 	brokerPort := uint16(bp)
 
+	basicBrokerClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{
+				{
+					CID:  "/broker/123",
+					Name: "foo",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"foo:bar"},
+				},
+				{
+					CID:  "/broker/456",
+					Name: "bar",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+				{
+					CID:  "/broker/789",
+					Name: "baz",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"ack:nak", "wing:ding"},
+				},
+			}, nil
+		},
+	}
+
 	tests := []struct {
-		checkConfig *apiclient.CheckBundle
-		client      API
-		name        string
-		wantErr     bool
+		checkConfig  *apiclient.CheckBundle
+		client       API
+		brokerClient API
+		name         string
+		wantErr      bool
 	}{
 		{
 			name:        "invalid, not found",
@@ -121,6 +137,7 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 					return nil, fmt.Errorf("API 404 - not found")
 				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:        "invalid, no submission_url",
@@ -131,6 +148,7 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 					return &apiclient.CheckBundle{CID: "/check_bundle/123"}, nil
 				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:        "invalid, broker not found",
@@ -144,10 +162,8 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 						Brokers: []string{"/broker/123"},
 					}, nil
 				},
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return nil, fmt.Errorf("API 404 - not found")
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:        "invalid, check not active",
@@ -163,22 +179,8 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 						Status:  "invalid",
 					}, nil
 				},
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return &apiclient.Broker{
-						CID:  "/broker/123",
-						Name: "foo",
-						Type: circonusType,
-						Details: []apiclient.BrokerDetail{
-							{
-								Status:  statusActive,
-								Modules: []string{"httptrap"},
-								IP:      &brokerIP,
-								Port:    &brokerPort,
-							},
-						},
-					}, nil
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:        "valid",
@@ -194,27 +196,21 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 						Status:  statusActive,
 					}, nil
 				},
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return &apiclient.Broker{
-						CID:  "/broker/123",
-						Name: "foo",
-						Type: circonusType,
-						Details: []apiclient.BrokerDetail{
-							{
-								Status:  statusActive,
-								Modules: []string{"httptrap"},
-								IP:      &brokerIP,
-								Port:    &brokerPort,
-							},
-						},
-					}, nil
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			tc.client = tt.client
 			tc.checkConfig = tt.checkConfig
 			if err := tc.fetchCheckBundle(); (err != nil) != tt.wantErr {
@@ -247,68 +243,83 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 	}
 	brokerPort := uint16(bp)
 
+	basicBrokerClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{
+				{
+					CID:  "/broker/123",
+					Name: "foo",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"foo:bar"},
+				},
+				{
+					CID:  "/broker/456",
+					Name: "bar",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+				{
+					CID:  "/broker/789",
+					Name: "baz",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"ack:nak", "wing:ding"},
+				},
+			}, nil
+		},
+	}
+
 	tests := []struct {
-		client  API
-		cfg     *apiclient.CheckBundle
-		name    string
-		wantErr bool
+		client       API
+		brokerClient API
+		cfg          *apiclient.CheckBundle
+		name         string
+		wantErr      bool
 	}{
 		{
 			name:    "invalid, nil config",
 			wantErr: true,
 		},
 		{
-			name: "invalid config",
-			cfg:  &apiclient.CheckBundle{},
+			name:         "invalid config",
+			cfg:          &apiclient.CheckBundle{},
+			brokerClient: basicBrokerClient,
 			client: &APIMock{
 				CreateCheckBundleFunc: func(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error) {
 					return nil, fmt.Errorf("API 500 - failure")
-				},
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									CN:      "testbroker.example.com",
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
 				},
 			},
 			wantErr: true,
 		},
 		{
-			name: "valid",
-			cfg:  &apiclient.CheckBundle{},
+			name:         "valid",
+			cfg:          &apiclient.CheckBundle{},
+			brokerClient: basicBrokerClient,
 			client: &APIMock{
 				CreateCheckBundleFunc: func(cfg *apiclient.CheckBundle) (*apiclient.CheckBundle, error) {
 					return &apiclient.CheckBundle{CID: "/check_bundle/123"}, nil
-				},
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									CN:      "testbroker.example.com",
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
 				},
 			},
 			wantErr: false,
@@ -323,6 +334,14 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 				}
 			}
 			tc.client = tt.client
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			if err := tc.createCheckBundle(tt.cfg); (err != nil) != tt.wantErr {
 				t.Errorf("TrapCheck.createCheckBundle() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -487,8 +506,57 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 	}
 	brokerPort := uint16(bp)
 
+	basicBrokerClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{
+				{
+					CID:  "/broker/123",
+					Name: "foo",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"foo:bar"},
+				},
+				{
+					CID:  "/broker/456",
+					Name: "bar",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+				{
+					CID:  "/broker/789",
+					Name: "baz",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"ack:nak", "wing:ding"},
+				},
+			}, nil
+		},
+	}
+
 	tests := []struct {
 		client          API
+		brokerClient    API
 		cfg             *apiclient.CheckBundle
 		name            string
 		checkSearchTags apiclient.TagType
@@ -504,6 +572,7 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 					return nil, fmt.Errorf("API 404 - not found")
 				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:            "success: search found",
@@ -517,6 +586,7 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 					}, nil
 				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:            "search not found, create error",
@@ -530,25 +600,8 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 				SearchCheckBundlesFunc: func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.CheckBundle, error) {
 					return &[]apiclient.CheckBundle{}, nil
 				},
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									CN:      "testbroker.example.com",
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:            "success: search not found, create",
@@ -562,31 +615,22 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 				SearchCheckBundlesFunc: func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.CheckBundle, error) {
 					return &[]apiclient.CheckBundle{}, nil
 				},
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									CN:      "testbroker.example.com",
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tc.client = tt.client
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			tc.checkSearchTags = tt.checkSearchTags
 			if err := tc.initCheckBundle(tt.cfg); (err != nil) != tt.wantErr {
 				t.Errorf("TrapCheck.initCheckBundle() error = %v, wantErr %v", err, tt.wantErr)
@@ -618,8 +662,57 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 	}
 	brokerPort := uint16(bp)
 
+	basicBrokerClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{
+				{
+					CID:  "/broker/123",
+					Name: "foo",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"foo:bar"},
+				},
+				{
+					CID:  "/broker/456",
+					Name: "bar",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+				{
+					CID:  "/broker/789",
+					Name: "baz",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"ack:nak", "wing:ding"},
+				},
+			}, nil
+		},
+	}
+
 	tests := []struct {
 		client          API
+		brokerClient    API
 		checkConfig     *apiclient.CheckBundle
 		name            string
 		checkSearchTags apiclient.TagType
@@ -639,6 +732,7 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 					return nil, fmt.Errorf("API 404 - not found")
 				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:    "cfg w/cid - broker - api error",
@@ -653,10 +747,8 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 				FetchCheckBundleFunc: func(cid apiclient.CIDType) (*apiclient.CheckBundle, error) {
 					return &apiclient.CheckBundle{CID: "/check_bundle/123", Brokers: []string{"/broker/123"}}, nil
 				},
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return nil, fmt.Errorf("API 404 - not found")
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:        "success: cfg w/cid",
@@ -672,22 +764,8 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 						Status:  statusActive,
 					}, nil
 				},
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return &apiclient.Broker{
-						CID:  "/broker/123",
-						Name: "foo",
-						Type: circonusType,
-						Details: []apiclient.BrokerDetail{
-							{
-								Status:  statusActive,
-								Modules: []string{"httptrap"},
-								IP:      &brokerIP,
-								Port:    &brokerPort,
-							},
-						},
-					}, nil
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:            "success: search",
@@ -705,24 +783,8 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 						},
 					}, nil
 				},
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 		{
 			name:            "success: create",
@@ -741,30 +803,22 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 						Status:  statusActive,
 					}, nil
 				},
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
 			},
+			brokerClient: basicBrokerClient,
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			tc.client = tt.client
+			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
 			tc.checkConfig = tt.checkConfig
 			tc.checkSearchTags = tt.checkSearchTags
 			if err := tc.initializeCheck(); (err != nil) != tt.wantErr {

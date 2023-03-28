@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/circonus-labs/go-apiclient"
+	brokerList "github.com/circonus-labs/go-trapcheck/internal/broker_list"
 )
 
 func TestTrapCheck_brokerSupportsCheckType(t *testing.T) {
@@ -354,6 +355,133 @@ func TestTrapCheck_getBroker(t *testing.T) {
 	}
 	brokerPort := uint16(bp)
 
+	noBrokersFoundClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return nil, fmt.Errorf("API 404 - broker not found")
+		},
+	}
+
+	emptyBrokerListClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{}, nil
+		},
+	}
+
+	noActiveBrokersClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{
+				{
+					CID:  "/broker/123",
+					Name: "foo",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  "foo",
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+				{
+					CID:  "/broker/456",
+					Name: "bar",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  "bar",
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+			}, nil
+		},
+	}
+
+	basicEnterpriseClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{
+				{
+					CID:  "/broker/123",
+					Name: "foo",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"foo:bar"},
+				},
+				{
+					CID:  "/broker/456",
+					Name: "bar",
+					Type: enterpriseType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+			}, nil
+		},
+	}
+
+	basicClient := &APIMock{
+		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
+			return &[]apiclient.Broker{
+				{
+					CID:  "/broker/123",
+					Name: "foo",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"foo:bar"},
+				},
+				{
+					CID:  "/broker/456",
+					Name: "bar",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+				},
+				{
+					CID:  "/broker/789",
+					Name: "baz",
+					Type: circonusType,
+					Details: []apiclient.BrokerDetail{
+						{
+							Status:  statusActive,
+							Modules: []string{"httptrap"},
+							IP:      &brokerIP,
+							Port:    &brokerPort,
+						},
+					},
+					Tags: []string{"ack:nak", "wing:ding"},
+				},
+			}, nil
+		},
+	}
+
 	tests := []struct {
 		checkConfig      *apiclient.CheckBundle
 		checkBundle      *apiclient.CheckBundle
@@ -367,203 +495,68 @@ func TestTrapCheck_getBroker(t *testing.T) {
 		checkBrokerType  bool
 	}{
 		{
-			name: "invalid (non-existent) broker in passed config",
-			client: &APIMock{
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return nil, fmt.Errorf("API 404 - broker not found")
-				},
-			},
-			checkConfig: &apiclient.CheckBundle{Brokers: []string{"/broker/123"}},
+			name:        "invalid (non-existent) broker in passed config",
+			client:      basicClient,
+			checkConfig: &apiclient.CheckBundle{Brokers: []string{"/broker/999"}},
 			checkType:   "httptrap",
 			wantErr:     true,
 		},
 		{
-			name: "valid broker in passed config",
-			client: &APIMock{
-				FetchBrokerFunc: func(cid apiclient.CIDType) (*apiclient.Broker, error) {
-					return &apiclient.Broker{
-						CID:  "/broker/123",
-						Name: "foo",
-						Type: circonusType,
-						Details: []apiclient.BrokerDetail{
-							{
-								Status:  statusActive,
-								Modules: []string{"httptrap"},
-								IP:      &brokerIP,
-								Port:    &brokerPort,
-							},
-						},
-					}, nil
-				},
-			},
+			name:        "valid broker in passed config",
+			client:      basicClient,
 			checkConfig: &apiclient.CheckBundle{Brokers: []string{"/broker/123"}},
 			checkType:   "httptrap",
 			wantErr:     false,
 		},
 		{
-			name: "invalid search broker w/select tag - not found",
-			client: &APIMock{
-				SearchBrokersFunc: func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.Broker, error) {
-					return nil, fmt.Errorf("API 404 - broker not found")
-				},
-			},
-			brokerSelectTags: apiclient.TagType{"foo:bar"},
+			name:             "invalid search broker w/select tag - not found",
+			client:           basicClient,
+			brokerSelectTags: apiclient.TagType{"bar:baz"},
 			checkType:        "httptrap",
 			wantErr:          true,
 		},
 		{
-			name: "valid search broker w/select tag",
-			client: &APIMock{
-				SearchBrokersFunc: func(searchCriteria *apiclient.SearchQueryType, filterCriteria *apiclient.SearchFilterType) (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
-			},
+			name:             "valid search broker w/select tag",
+			client:           basicClient,
 			brokerSelectTags: apiclient.TagType{"foo:bar"},
 			checkType:        "httptrap",
 			wantErr:          false,
 		},
 		{
-			name: "invalid no brokers found",
-			client: &APIMock{
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return nil, fmt.Errorf("API 404 - broker not found")
-				},
-			},
+			name:             "valid search broker w/select tags",
+			client:           basicClient,
+			brokerSelectTags: apiclient.TagType{"wing:ding", "ack:nak"},
+			checkType:        "httptrap",
+			wantErr:          false,
+		},
+		{
+			name:      "invalid no brokers found",
+			client:    noBrokersFoundClient,
 			checkType: "httptrap",
 			wantErr:   true,
 		},
 		{
-			name: "invalid empty broker list",
-			client: &APIMock{
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{}, nil
-				},
-			},
+			name:      "invalid empty broker list",
+			client:    emptyBrokerListClient,
 			checkType: "httptrap",
 			wantErr:   true,
 		},
 		{
-			name: "invalid no active brokers",
-			client: &APIMock{
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  "foo",
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-						{
-							CID:  "/broker/456",
-							Name: "bar",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  "bar",
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
-			},
+			name:      "invalid no active brokers",
+			client:    noActiveBrokersClient,
 			checkType: "httptrap",
 			wantErr:   true,
 		},
 		{
-			name: "valid active brokers",
-			client: &APIMock{
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-						{
-							CID:  "/broker/456",
-							Name: "bar",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
-			},
-			checkType: "httptrap",
-			wantErr:   false,
+			name:           "valid active brokers (circ type)",
+			client:         basicClient,
+			checkType:      "httptrap",
+			wantErr:        false,
+			wantBrokerType: circonusType,
 		},
 		{
-			name: "valid active brokers",
-			client: &APIMock{
-				FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-					return &[]apiclient.Broker{
-						{
-							CID:  "/broker/123",
-							Name: "foo",
-							Type: circonusType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-						{
-							CID:  "/broker/456",
-							Name: "bar",
-							Type: enterpriseType,
-							Details: []apiclient.BrokerDetail{
-								{
-									Status:  statusActive,
-									Modules: []string{"httptrap"},
-									IP:      &brokerIP,
-									Port:    &brokerPort,
-								},
-							},
-						},
-					}, nil
-				},
-			},
+			name:            "valid active brokers (enterprise)",
+			client:          basicEnterpriseClient,
 			checkType:       "httptrap",
 			wantErr:         false,
 			checkBrokerType: true,
@@ -573,7 +566,15 @@ func TestTrapCheck_getBroker(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			tc.client = tt.client
+			if err := brokerList.Init(tt.client, tc.Log); err != nil {
+				t.Errorf("initializing broker list: %s", err)
+			}
+			if bl, err := brokerList.GetInstance(); err != nil {
+				t.Errorf("getting broker list instance: %s", err)
+			} else {
+				tc.brokerList = bl
+			}
+			// tc.client = tt.client
 			tc.checkConfig = tt.checkConfig
 			tc.checkBundle = tt.checkBundle
 			tc.brokerSelectTags = tt.brokerSelectTags
