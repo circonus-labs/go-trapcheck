@@ -24,6 +24,12 @@ func (tc *TrapCheck) clearTLSConfig() {
 // setBrokerTLSConfig sets the broker tls configuration if was
 // not supplied by the caller in the configuration.
 func (tc *TrapCheck) setBrokerTLSConfig() error {
+	if tc.brokerList == nil {
+		if err := tc.initBrokerList(); err != nil {
+			return err
+		}
+	}
+
 	if tc.resetTLSConfig {
 		tc.broker = nil    // force refresh
 		tc.tlsConfig = nil // don't use, refresh and reset
