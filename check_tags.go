@@ -8,7 +8,7 @@ import (
 	"github.com/circonus-labs/go-apiclient"
 )
 
-func (tc *TrapCheck) UpdateCheckTags(ctx context.Context, tags []string) (*apiclient.CheckBundle, error) {
+func (tc *TrapCheck) UpdateCheckTags(_ context.Context, tags []string) (*apiclient.CheckBundle, error) {
 	if tc.checkBundle == nil {
 		return nil, fmt.Errorf("invalid state, check bundle is nil")
 	}
