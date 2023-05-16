@@ -32,9 +32,17 @@ func (tc *TrapCheck) fetchBroker(cid, checkType string) error {
 	if cid == "" {
 		return fmt.Errorf("invalid broker cid (empty)")
 	}
+
 	if checkType == "" {
 		return fmt.Errorf("invalid check type (empty)")
 	}
+
+	if tc.brokerList == nil {
+		if err := tc.initBrokerList(); err != nil {
+			return err
+		}
+	}
+
 	broker, err := tc.brokerList.GetBroker(cid)
 	// broker, err := tc.client.FetchBroker(apiclient.CIDType(&cid))
 	if err != nil {
@@ -53,6 +61,12 @@ func (tc *TrapCheck) getBroker(checkType string) error {
 	//
 	if tc.checkConfig != nil && len(tc.checkConfig.Brokers) > 0 {
 		return tc.fetchBroker(tc.checkConfig.Brokers[0], checkType)
+	}
+
+	if tc.brokerList == nil {
+		if err := tc.initBrokerList(); err != nil {
+			return err
+		}
 	}
 
 	//

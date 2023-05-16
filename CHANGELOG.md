@@ -1,3 +1,9 @@
+# v0.0.11
+
+* fix: init broker list correctly in edge cases
+* fix: lint, struct alignment
+* fix: lint, unused param
+
 # v0.0.10
 
 * feat: add gzip size of sent data stat

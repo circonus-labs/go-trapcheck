@@ -19,12 +19,12 @@ type BrokerList interface {
 	SearchBrokerList(searchTags apiclient.TagType) (*[]apiclient.Broker, error)
 }
 
-type brokerList struct {
+type brokerList struct { //nolint:govet
 	lastRefresh time.Time
-	logger      Logger
-	client      API
-	brokers     *[]apiclient.Broker
 	sync.Mutex
+	logger  Logger
+	client  API
+	brokers *[]apiclient.Broker
 }
 
 var brokerListInstance *brokerList

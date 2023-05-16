@@ -113,16 +113,6 @@ func New(cfg *Config) (*TrapCheck, error) {
 		}
 	}
 
-	if err := brokerList.Init(cfg.Client, tc.Log); err != nil {
-		return nil, fmt.Errorf("initializing broker list: %w", err)
-	}
-
-	if bl, err := brokerList.GetInstance(); err != nil {
-		return nil, fmt.Errorf("getting broker list instance: %w", err)
-	} else {
-		tc.brokerList = bl
-	}
-
 	dur := cfg.BrokerMaxResponseTime
 	if dur == "" {
 		dur = defaultBrokerMaxResponseTime
@@ -163,6 +153,10 @@ func New(cfg *Config) (*TrapCheck, error) {
 	} else {
 		// assume a valid bundle was provided in the check config
 		tc.checkBundle = tc.checkConfig
+	}
+
+	if err := tc.initBrokerList(); err != nil {
+		return nil, err
 	}
 
 	if err := tc.setBrokerTLSConfig(); err != nil {
@@ -249,11 +243,31 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 
 	tc.submissionURL = surl
 
+	if err := tc.initBrokerList(); err != nil {
+		return nil, err
+	}
+
 	if err := tc.setBrokerTLSConfig(); err != nil {
 		return nil, err
 	}
 
 	return tc, nil
+}
+
+func (tc *TrapCheck) initBrokerList() error {
+	if tc.brokerList != nil {
+		return nil
+	}
+	if err := brokerList.Init(tc.client, tc.Log); err != nil {
+		return fmt.Errorf("initializing broker list: %w", err)
+	}
+
+	bl, err := brokerList.GetInstance()
+	if err != nil {
+		return fmt.Errorf("getting broker list instance: %w", err)
+	}
+	tc.brokerList = bl
+	return nil
 }
 
 // SendMetrics submits the metrics to the broker
