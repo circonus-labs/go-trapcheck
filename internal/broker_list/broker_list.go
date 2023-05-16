@@ -21,10 +21,10 @@ type BrokerList interface {
 
 type brokerList struct {
 	lastRefresh time.Time
-	logger      Logger
-	client      API
-	brokers     *[]apiclient.Broker
 	sync.Mutex
+	logger  Logger
+	client  API
+	brokers *[]apiclient.Broker
 }
 
 var brokerListInstance *brokerList
