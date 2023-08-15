@@ -1,15 +1,21 @@
-# v0.0.11
+# changelog
+
+## v0.0.12
+
+* fix: ptr dereference, using tc.broker when that is not valid any longer. should be using broker.Name not tc.broker.Name
+
+## v0.0.11
 
 * fix: init broker list correctly in edge cases
 * fix: lint, struct alignment
 * fix: lint, unused param
 
-# v0.0.10
+## v0.0.10
 
 * feat: add gzip size of sent data stat
 * feat: singleton broker list [CIRC-9594]
 
-# v0.0.9
+## v0.0.9
 
 * chore: add RefreshCheckBundle tests
 * feet: add `RefreshCheckBundle` method
@@ -21,14 +27,14 @@
 * fix(lint): ioutil deprecation
 * chore: update to go1.17
 
-# v0.0.8
+## v0.0.8
 
 * add: reset flag and handle rest in setBrokerTLSConfig
 * upd: skip conn test if check type is httptrap and using proxy env vars HTTP_PROXY and/or HTTPS_PROXY
 * upd: move cert error logging to tls config
 * upd: disable gci
 
-# v0.0.7
+## v0.0.7
 
 * add: tracking if bundle is new (created) or not
 * upd: only, allow rule, so a deny is not evaluated by broker for every incoming metric. one rule _must_ be provided in order to enable metric_filters
@@ -42,28 +48,28 @@
 * upd: add public broker ca setting awareness
 * upd: ignore generated mocks
 
-# v0.0.6
+## v0.0.6
 
 * upd: only use an allow rule in metric filter when creating a new check to reduce load on broker processing
 
-# v0.0.5
+## v0.0.5
 
 * add: NewFromCheckBundle to handle init from explicit check bundle (e.g. cached)
 
-# v0.0.4
+## v0.0.4
 
 * fix: peer cert verify bad return on nil err
 
-# v0.0.3
+## v0.0.3
 
 * fix: reduce log message size when broker responds with 406
 
-# v0.0.2
+## v0.0.2
 
 * add: dependabot config
 * fix: lint issues
 * add: lint config
 
-# v0.0.1
+## v0.0.1
 
 * initial

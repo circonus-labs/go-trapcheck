@@ -44,12 +44,11 @@ func (tc *TrapCheck) fetchBroker(cid, checkType string) error {
 	}
 
 	broker, err := tc.brokerList.GetBroker(cid)
-	// broker, err := tc.client.FetchBroker(apiclient.CIDType(&cid))
 	if err != nil {
 		return fmt.Errorf("retrieving broker (%s): %w", cid, err)
 	}
 	if valid, err := tc.isValidBroker(&broker, checkType); !valid {
-		return fmt.Errorf("%s (%s) is an invalid broker for check type %s: %w", tc.broker.Name, tc.checkConfig.Brokers[0], checkType, err)
+		return fmt.Errorf("%s (%s) is an invalid broker for check type %s: %w", broker.Name, tc.checkConfig.Brokers[0], checkType, err)
 	}
 	tc.broker = &broker
 	return nil
