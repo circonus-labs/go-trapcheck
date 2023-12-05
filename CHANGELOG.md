@@ -1,4 +1,15 @@
-# changelog
+# unreleased
+
+## v0.0.14
+
+* build: add goreleaser config (with sbom generation)
+* chore: use latest lint in workflow
+* chore: add .gitignore
+* fix: typo in comment
+
+## v0.0.13
+
+* build(deps): bump github.com/hashicorp/go-retryablehttp from 0.7.4 to 0.7.5
 
 ## v0.0.12
 
