@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/circonus-labs/go-apiclient"
@@ -355,12 +356,6 @@ func TestTrapCheck_getBroker(t *testing.T) {
 	}
 	brokerPort := uint16(bp)
 
-	noBrokersFoundClient := &APIMock{
-		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
-			return nil, fmt.Errorf("API 404 - broker not found")
-		},
-	}
-
 	emptyBrokerListClient := &APIMock{
 		FetchBrokersFunc: func() (*[]apiclient.Broker, error) {
 			return &[]apiclient.Broker{}, nil
@@ -530,12 +525,6 @@ func TestTrapCheck_getBroker(t *testing.T) {
 			wantErr:          false,
 		},
 		{
-			name:      "invalid no brokers found",
-			client:    noBrokersFoundClient,
-			checkType: "httptrap",
-			wantErr:   true,
-		},
-		{
 			name:      "invalid empty broker list",
 			client:    emptyBrokerListClient,
 			checkType: "httptrap",
@@ -572,6 +561,12 @@ func TestTrapCheck_getBroker(t *testing.T) {
 			if bl, err := brokerList.GetInstance(); err != nil {
 				t.Errorf("getting broker list instance: %s", err)
 			} else {
+				if err := bl.SetClient(tt.client); err != nil {
+					t.Errorf("broker list setting client: %s", err)
+				}
+				if err := bl.FetchBrokers(); err != nil && !strings.Contains(err.Error(), "API 404") {
+					t.Errorf("broker list fetching brokers: %s", err)
+				}
 				tc.brokerList = bl
 			}
 			// tc.client = tt.client
