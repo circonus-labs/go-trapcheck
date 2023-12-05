@@ -209,6 +209,12 @@ func TestTrapCheck_fetchCheckBundle(t *testing.T) {
 			if bl, err := brokerList.GetInstance(); err != nil {
 				t.Errorf("getting broker list instance: %s", err)
 			} else {
+				if err := bl.SetClient(tt.brokerClient); err != nil {
+					t.Errorf("broker list setting client: %s", err)
+				}
+				if err := bl.FetchBrokers(); err != nil {
+					t.Errorf("broker list fetching brokers: %s", err)
+				}
 				tc.brokerList = bl
 			}
 			tc.client = tt.client
@@ -334,13 +340,21 @@ func TestTrapCheck_createCheckBundle(t *testing.T) {
 				}
 			}
 			tc.client = tt.client
-			if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
-				t.Errorf("initializing broker list: %s", err)
-			}
-			if bl, err := brokerList.GetInstance(); err != nil {
-				t.Errorf("getting broker list instance: %s", err)
-			} else {
-				tc.brokerList = bl
+			if tt.brokerClient != nil {
+				if err := brokerList.Init(tt.brokerClient, tc.Log); err != nil {
+					t.Errorf("initializing broker list: %s", err)
+				}
+				if bl, err := brokerList.GetInstance(); err != nil {
+					t.Errorf("getting broker list instance: %s", err)
+				} else {
+					if err := bl.SetClient(tt.brokerClient); err != nil {
+						t.Errorf("broker list setting client: %s", err)
+					}
+					if err := bl.FetchBrokers(); err != nil {
+						t.Errorf("broker list fetching brokers: %s", err)
+					}
+					tc.brokerList = bl
+				}
 			}
 			if err := tc.createCheckBundle(tt.cfg); (err != nil) != tt.wantErr {
 				t.Errorf("TrapCheck.createCheckBundle() error = %v, wantErr %v", err, tt.wantErr)
@@ -629,6 +643,12 @@ func TestTrapCheck_initCheckBundle(t *testing.T) {
 			if bl, err := brokerList.GetInstance(); err != nil {
 				t.Errorf("getting broker list instance: %s", err)
 			} else {
+				if err := bl.SetClient(tt.brokerClient); err != nil {
+					t.Errorf("broker list setting client: %s", err)
+				}
+				if err := bl.FetchBrokers(); err != nil {
+					t.Errorf("broker list fetching brokers: %s", err)
+				}
 				tc.brokerList = bl
 			}
 			tc.checkSearchTags = tt.checkSearchTags
@@ -817,6 +837,12 @@ func TestTrapCheck_initializeCheck(t *testing.T) {
 			if bl, err := brokerList.GetInstance(); err != nil {
 				t.Errorf("getting broker list instance: %s", err)
 			} else {
+				if err := bl.SetClient(tt.brokerClient); err != nil {
+					t.Errorf("broker list setting client: %s", err)
+				}
+				if err := bl.FetchBrokers(); err != nil {
+					t.Errorf("broker list fetching brokers: %s", err)
+				}
 				tc.brokerList = bl
 			}
 			tc.checkConfig = tt.checkConfig

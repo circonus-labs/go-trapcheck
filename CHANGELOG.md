@@ -1,5 +1,8 @@
 # unreleased
 
+* fix: check tests to correctly initialize broker list
+* fix: GetBroker tests to work with broker_list
+
 ## v0.0.14
 
 * build: add goreleaser config (with sbom generation)
