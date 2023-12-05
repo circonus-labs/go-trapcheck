@@ -17,14 +17,15 @@ type BrokerList interface {
 	GetBrokerList() (*[]apiclient.Broker, error)
 	GetBroker(cid string) (apiclient.Broker, error)
 	SearchBrokerList(searchTags apiclient.TagType) (*[]apiclient.Broker, error)
+	SetClient(API) error
 }
 
-type brokerList struct { //nolint:govet
+type brokerList struct {
 	lastRefresh time.Time
+	logger      Logger
+	client      API
+	brokers     *[]apiclient.Broker
 	sync.Mutex
-	logger  Logger
-	client  API
-	brokers *[]apiclient.Broker
 }
 
 var brokerListInstance *brokerList
@@ -54,6 +55,16 @@ func GetInstance() (BrokerList, error) { //nolint:revive
 		return nil, fmt.Errorf("broker list not initialized")
 	}
 	return brokerListInstance, nil
+}
+
+func (bl *brokerList) SetClient(client API) error {
+	if client == nil {
+		return fmt.Errorf("invalid init call, client is nil")
+	}
+
+	bl.client = client
+
+	return nil
 }
 
 func (bl *brokerList) RefreshBrokers() error {
