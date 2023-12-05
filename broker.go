@@ -56,7 +56,7 @@ func (tc *TrapCheck) fetchBroker(cid, checkType string) error {
 
 func (tc *TrapCheck) getBroker(checkType string) error {
 	//
-	// caller defiened specific broker, try to use it
+	// caller defined specific broker, try to use it
 	//
 	if tc.checkConfig != nil && len(tc.checkConfig.Brokers) > 0 {
 		return tc.fetchBroker(tc.checkConfig.Brokers[0], checkType)
