@@ -11,6 +11,7 @@ jobs:
         run: go test -race -coverprofile=coverage.out -covermode=atomic
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        if: success() || failure()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
