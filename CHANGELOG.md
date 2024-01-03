@@ -1,5 +1,10 @@
 # unreleased
 
+## v0.0.15
+
+* feat: add SubmissionTimeout option -- default 10s -- controls timing out requests to broker
+* build(deps): bump github.com/google/uuid from 1.4.0 to 1.5.0
+* build(deps): bump github.com/circonus-labs/go-apiclient from 0.7.23 to 0.7.24
 * fix: check tests to correctly initialize broker list
 * fix: GetBroker tests to work with broker_list
 
