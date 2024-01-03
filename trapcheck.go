@@ -35,6 +35,8 @@ type Config struct {
 	Logger Logger
 	// SubmissionURL explicit submission url (e.g. submitting to an agent, if tls used a SubmitTLSConfig is required)
 	SubmissionURL string
+	// SubmissionTimeout sets the timeout for submitting metrics to a broker
+	SubmissionTimeout string
 	// BrokerMaxResponseTime defines the timeout in which brokers must respond when selecting
 	BrokerMaxResponseTime string
 	// TraceMetrics path to write traced metrics to (must be writable by the user running app)
@@ -61,6 +63,7 @@ type TrapCheck struct {
 	submissionURL         string
 	checkSearchTags       apiclient.TagType
 	brokerSelectTags      apiclient.TagType
+	submissionTimeout     time.Duration
 	brokerMaxResponseTime time.Duration
 	newCheckBundle        bool
 	usingPublicCA         bool
@@ -124,7 +127,7 @@ func New(cfg *Config) (*TrapCheck, error) {
 	tc.brokerMaxResponseTime = maxDur
 
 	if cfg.TraceMetrics != "" {
-		err := testTraceMetricsDir(cfg.TraceMetrics)
+		err := testTraceMetricsDir(cfg.TraceMetrics) //nolint:govet
 		if err != nil {
 			tc.Log.Warnf("trace metrics directory (%s): %s -- disabling", cfg.TraceMetrics, err)
 		} else {
@@ -142,7 +145,7 @@ func New(cfg *Config) (*TrapCheck, error) {
 
 	tc.submissionURL = tc.custSubmissionURL
 	if tc.submissionURL == "" {
-		if err := tc.initializeCheck(); err != nil {
+		if err := tc.initializeCheck(); err != nil { //nolint:govet
 			return nil, err
 		}
 		if surl, ok := tc.checkBundle.Config[config.SubmissionURL]; ok {
@@ -154,6 +157,16 @@ func New(cfg *Config) (*TrapCheck, error) {
 		// assume a valid bundle was provided in the check config
 		tc.checkBundle = tc.checkConfig
 	}
+
+	sto := cfg.SubmissionTimeout
+	if sto == "" {
+		sto = defaultSubmissionTimeout
+	}
+	stdur, err := time.ParseDuration(sto)
+	if err != nil {
+		return nil, fmt.Errorf("parsing submission timeout (%s): %w", sto, err)
+	}
+	tc.submissionTimeout = stdur
 
 	if err := tc.initBrokerList(); err != nil {
 		return nil, err
@@ -222,7 +235,7 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 	tc.brokerMaxResponseTime = maxDur
 
 	if cfg.TraceMetrics != "" {
-		err := testTraceMetricsDir(cfg.TraceMetrics)
+		err := testTraceMetricsDir(cfg.TraceMetrics) //nolint:govet
 		if err != nil {
 			tc.Log.Warnf("trace metrics directory (%s): %s -- disabling", cfg.TraceMetrics, err)
 		} else {
@@ -242,6 +255,16 @@ func NewFromCheckBundle(cfg *Config, bundle *apiclient.CheckBundle) (*TrapCheck,
 	}
 
 	tc.submissionURL = surl
+
+	sto := cfg.SubmissionTimeout
+	if sto == "" {
+		sto = defaultSubmissionTimeout
+	}
+	stdur, err := time.ParseDuration(sto)
+	if err != nil {
+		return nil, fmt.Errorf("parsing submission timeout (%s): %w", sto, err)
+	}
+	tc.submissionTimeout = stdur
 
 	if err := tc.initBrokerList(); err != nil {
 		return nil, err
@@ -314,7 +337,7 @@ func (tc *TrapCheck) IsNewCheckBundle() bool {
 }
 
 // GetCheckBundle returns the trap check bundle currently in use - can be used
-// for caching checks on disk and re-using the ckeck quickly by passing
+// for caching checks on disk and re-using the check quickly by passing
 // the CID in via the check bundle config.
 func (tc *TrapCheck) GetCheckBundle() (apiclient.CheckBundle, error) {
 	if tc.checkBundle == nil {

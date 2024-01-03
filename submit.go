@@ -38,8 +38,9 @@ type TrapResult struct {
 }
 
 const (
-	compressionThreshold = 1024
-	traceTSFormat        = "20060102_150405.000000000"
+	compressionThreshold     = 1024
+	traceTSFormat            = "20060102_150405.000000000"
+	defaultSubmissionTimeout = "10s"
 )
 
 func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapResult, bool, error) {
@@ -74,7 +75,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapRes
 				MaxIdleConns:        1,
 				MaxIdleConnsPerHost: 0,
 			},
-			Timeout: 60 * time.Second, // hard 60s timeout
+			Timeout: tc.submissionTimeout,
 		}
 	} else {
 		client = &http.Client{
@@ -90,7 +91,7 @@ func (tc *TrapCheck) submit(ctx context.Context, metrics bytes.Buffer) (*TrapRes
 				MaxIdleConns:        1,
 				MaxIdleConnsPerHost: 0,
 			},
-			Timeout: 60 * time.Second, // hard 60s timeout
+			Timeout: tc.submissionTimeout,
 		}
 	}
 
